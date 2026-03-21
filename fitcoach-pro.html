@@ -1,0 +1,3788 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FitCoach Pro — プロトレーナーのクライアント管理</title>
+
+<!-- ═══ SEO / OGP ═══ -->
+<meta name="description" content="パーソナルトレーナーのためのクライアント管理SaaS。セッション記録・体測定・進捗グラフを一元管理。無料で3名まで利用可能。">
+<meta property="og:title" content="FitCoach Pro — プロトレーナーのクライアント管理">
+<meta property="og:description" content="セッション記録・体測定・進捗グラフをワンアプリで。無料プランあり。">
+<meta property="og:url" content="https://fitcoachpro-app.netlify.app">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://fitcoachpro-app.netlify.app/og-image.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="FitCoach Pro — プロトレーナーのクライアント管理">
+<meta name="twitter:description" content="セッション記録・体測定・進捗グラフをワンアプリで。無料プランあり。">
+<link rel="canonical" href="https://fitcoachpro-app.netlify.app">
+
+<!-- ═══ PWA ═══ -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#007AFF">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FitCoach Pro">
+
+<!-- ═══ GA4 ═══ -->
+<!-- GA4 Measurement IDをG-XXXXXXXXXXに差し替えてください -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX');
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --accent:   #007AFF;
+  --accent2:  #00C8FF;
+  --green:    #34C759;
+  --red:      #FF3B30;
+  --amber:    #FF9500;
+  --bg:       #080808;
+  --card:     #131313;
+  --card2:    #1a1a1a;
+  --text:     #efefef;
+  --sub:      #606060;
+  --border:   #242424;
+  --input-bg: #0f0f0f;
+  --nav-h:    62px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  min-height: 100vh;
+}
+
+/* ═══════ HEADER ═══════ */
+.header {
+  background: #000;
+  padding: 14px 18px 13px;
+  position: sticky; top: 0; z-index: 100;
+  display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid #1a1a1a;
+}
+.header-title {
+  font-size: 20px; font-weight: 900; letter-spacing: -0.5px;
+  color: #fff; display: flex; align-items: center; gap: 7px;
+}
+.header-title .logo { font-size: 22px; }
+.header-title strong {
+  background: linear-gradient(90deg, #007AFF 0%, #00C8FF 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.header-right { display: flex; align-items: center; gap: 10px; }
+.header-date .day { font-size: 13px; font-weight: 800; color: #fff; }
+.header-date .year { font-size: 10px; color: var(--sub); margin-top: 1px; }
+.auth-btn {
+  padding: 7px 14px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 12px; font-weight: 800;
+  border: none; cursor: pointer; font-family: inherit;
+  letter-spacing: .04em; white-space: nowrap; -webkit-appearance: none;
+}
+.user-avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900; color: #fff;
+  cursor: pointer; flex-shrink: 0; overflow: hidden;
+}
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.sync-icon {
+  font-size: 18px; cursor: pointer; line-height: 1;
+  color: var(--sub); transition: color .2s, transform .4s;
+}
+.sync-icon.syncing { animation: spin 1s linear infinite; color: var(--accent); }
+.sync-icon.ok  { color: var(--green); }
+.sync-icon.err { color: var(--red); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════ VIEWS ═══════ */
+.view { display: none; padding: 14px 14px 10px; }
+.view.active { display: block; }
+
+/* ═══════ CARDS ═══════ */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 18px; padding: 18px; margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.5);
+}
+.card-label {
+  font-size: 10px; font-weight: 800; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .12em;
+  margin-bottom: 16px; display: flex; align-items: center; gap: 7px;
+}
+.card-label::before {
+  content: ''; display: block; width: 10px; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 1px;
+}
+.glow-line {
+  height: 1px; margin: 0 -18px 18px;
+  background: linear-gradient(90deg, transparent, rgba(0,122,255,.3) 40%, rgba(0,200,255,.3) 60%, transparent);
+}
+
+/* ═══════ CLIENT CARDS ═══════ */
+.client-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 15px 16px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer; transition: border-color .18s, background .18s;
+}
+.client-card:active { background: var(--card2); border-color: var(--accent); }
+.client-avatar {
+  width: 50px; height: 50px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 21px; font-weight: 900; color: #fff; flex-shrink: 0;
+}
+.client-info { flex: 1; min-width: 0; }
+.client-name { font-size: 16px; font-weight: 800; color: var(--text); }
+.client-meta { font-size: 12px; color: var(--sub); margin-top: 3px; line-height: 1.4; }
+.client-right { text-align: right; flex-shrink: 0; }
+.client-sessions { font-size: 24px; font-weight: 900; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.client-sessions-label { font-size: 9px; color: var(--sub); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+
+/* ═══════ GOAL BADGE ═══════ */
+.goal-badge {
+  display: inline-block; padding: 3px 9px; border-radius: 6px;
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; margin-top: 5px;
+}
+.goal-減量    { background: rgba(255,59,48,.12);  color: var(--red);    border: 1px solid rgba(255,59,48,.22); }
+.goal-増量    { background: rgba(0,122,255,.12);  color: var(--accent); border: 1px solid rgba(0,122,255,.22); }
+.goal-筋力向上 { background: rgba(255,149,0,.12); color: var(--amber);  border: 1px solid rgba(255,149,0,.22); }
+.goal-健康維持 { background: rgba(52,199,89,.12); color: var(--green);  border: 1px solid rgba(52,199,89,.22); }
+
+/* ═══════ FORMS ═══════ */
+.field { margin-bottom: 12px; }
+.field label {
+  display: block; font-size: 10px; font-weight: 800;
+  color: var(--sub); margin-bottom: 7px;
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.field input, .field select, .field textarea {
+  width: 100%; padding: 13px 14px;
+  border: 1.5px solid var(--border); border-radius: 12px;
+  font-size: 16px; color: var(--text); background: var(--input-bg);
+  outline: none; transition: border-color .2s, box-shadow .2s;
+  -webkit-appearance: none; font-family: inherit;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,122,255,.15);
+}
+.field textarea { resize: vertical; min-height: 68px; line-height: 1.6; }
+.field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23606060' d='M5 7L1 3h8z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; padding-right: 36px;
+}
+input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia(1) hue-rotate(180deg) saturate(3); cursor: pointer; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* ═══════ STAT FIELDS ═══════ */
+.stat-field {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 12px 10px 10px; text-align: center;
+}
+.stat-field label {
+  font-size: 9px; font-weight: 800; color: var(--sub);
+  text-transform: uppercase; letter-spacing: .1em; display: block; margin-bottom: 6px;
+}
+.stat-field input {
+  background: transparent; border: none; box-shadow: none;
+  text-align: center; font-size: 28px; font-weight: 900;
+  color: var(--accent); padding: 0; line-height: 1;
+  font-variant-numeric: tabular-nums; width: 100%;
+}
+.stat-field input:focus { border: none; box-shadow: none; }
+.stat-field input::placeholder { color: #333; font-size: 24px; }
+.stat-field .stat-unit { font-size: 10px; color: var(--sub); font-weight: 700; margin-top: 3px; }
+
+/* ═══════ BUTTONS ═══════ */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 16px; border: none; border-radius: 14px;
+  font-size: 14px; font-weight: 800; cursor: pointer;
+  letter-spacing: .08em; text-transform: uppercase;
+  transition: transform .12s, box-shadow .15s, opacity .12s;
+  -webkit-appearance: none; font-family: inherit;
+}
+.btn:active { transform: scale(.96); opacity: .9; }
+.btn-primary { background: linear-gradient(135deg, #007AFF 0%, #00C8FF 100%); color: #fff; box-shadow: 0 6px 24px rgba(0,122,255,.4); }
+.btn-green   { background: linear-gradient(135deg, #34C759 0%, #2DA44E 100%); color: #000; box-shadow: 0 6px 24px rgba(52,199,89,.3); }
+.btn-amber   { background: linear-gradient(135deg, #FF9500 0%, #FF6000 100%); color: #fff; box-shadow: 0 6px 24px rgba(255,149,0,.35); }
+.btn-ghost {
+  background: transparent; border: 1px solid #2a2a2a;
+  color: var(--sub); font-size: 11px; padding: 7px 13px;
+  border-radius: 8px; width: auto; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; transition: all .18s; cursor: pointer;
+  -webkit-appearance: none; font-family: inherit;
+}
+.btn-ghost:active { background: rgba(255,59,48,.12); border-color: var(--red); color: var(--red); }
+.btn-cancel {
+  width: 100%; padding: 13px; margin-top: 8px;
+  background: var(--card2); border: 1.5px solid var(--border);
+  border-radius: 14px; color: var(--sub);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: all .18s; -webkit-appearance: none; font-family: inherit;
+}
+.btn-cancel:active { background: rgba(255,59,48,.1); border-color: var(--red); color: var(--red); }
+.btn-sm {
+  padding: 9px 16px; font-size: 12px; font-weight: 800;
+  border-radius: 10px; border: none; cursor: pointer;
+  letter-spacing: .06em; text-transform: uppercase;
+  -webkit-appearance: none; font-family: inherit;
+  transition: transform .12s, opacity .12s;
+}
+.btn-sm:active { transform: scale(.95); opacity: .88; }
+.btn-sm-blue  { background: rgba(0,122,255,.12); color: var(--accent); }
+.btn-sm-green { background: rgba(52,199,89,.12); color: var(--green); }
+
+/* ═══════ FAB ═══════ */
+.fab {
+  position: fixed;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px);
+  right: 16px;
+  width: 56px; height: 56px; border-radius: 18px;
+  background: linear-gradient(135deg, #007AFF, #00C8FF);
+  color: #fff; font-size: 30px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 30px rgba(0,122,255,.55);
+  cursor: pointer; border: none; z-index: 50;
+  transition: transform .15s, box-shadow .15s;
+  -webkit-appearance: none;
+}
+.fab:active { transform: scale(.9); box-shadow: 0 4px 15px rgba(0,122,255,.3); }
+
+/* ═══════ BOTTOM NAV ═══════ */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  background: #000; border-top: 1px solid #1a1a1a;
+  display: flex; z-index: 200;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  cursor: pointer; color: #383838;
+  font-size: 9px; font-weight: 700; letter-spacing: .05em;
+  user-select: none; -webkit-user-select: none;
+  transition: color .2s; position: relative; text-transform: uppercase;
+}
+.nav-item .nav-icon { font-size: 21px; line-height: 1; transition: transform .2s; }
+.nav-item.active { color: var(--accent); }
+.nav-item.active .nav-icon { transform: scale(1.18); filter: drop-shadow(0 0 6px rgba(0,122,255,.6)); }
+.nav-item.active::after {
+  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 28px; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 0 0 3px 3px;
+}
+
+/* ═══════ SECTION ═══════ */
+.section-title {
+  font-size: 11px; font-weight: 800; color: var(--sub);
+  margin: 8px 2px 12px; display: flex; align-items: center; gap: 10px;
+  text-transform: uppercase; letter-spacing: .1em;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, var(--border), transparent); }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin: 8px 2px 12px; }
+.section-header .section-title { margin: 0; }
+
+/* ═══════ DETAIL ═══════ */
+.back-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: none; border: none; color: var(--accent);
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  padding: 0; margin-bottom: 16px; font-family: inherit;
+}
+.detail-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+}
+.detail-avatar {
+  width: 64px; height: 64px; border-radius: 18px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900; color: #fff; flex-shrink: 0;
+}
+.detail-name { font-size: 22px; font-weight: 900; color: var(--text); }
+.detail-meta { font-size: 13px; color: var(--sub); margin-top: 4px; line-height: 1.5; }
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.stat-box { background: var(--card2); border: 1px solid var(--border); border-radius: 14px; padding: 12px 8px; text-align: center; }
+.stat-box-val { font-size: 24px; font-weight: 900; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.stat-box-label { font-size: 9px; color: var(--sub); font-weight: 800; text-transform: uppercase; letter-spacing: .07em; margin-top: 5px; }
+
+/* ═══════ BODY WEIGHT DISPLAY ═══════ */
+.bw-hero { display: flex; align-items: flex-end; gap: 4px; margin-bottom: 4px; }
+.bw-big {
+  font-size: 52px; font-weight: 900; line-height: .9; font-variant-numeric: tabular-nums;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.bw-kg { font-size: 18px; font-weight: 700; color: var(--sub); margin-bottom: 5px; }
+.bw-diff { font-size: 13px; font-weight: 800; margin-left: 6px; margin-bottom: 5px; }
+.fat-row { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+.fat-val { font-size: 14px; font-weight: 800; color: var(--accent2); }
+.bw-date { font-size: 12px; color: var(--sub); margin-top: 4px; }
+
+/* ═══════ SESSION EXERCISE ENTRY ═══════ */
+.ex-entry {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 14px; padding: 14px; margin-bottom: 10px;
+}
+.ex-entry-header {
+  display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+}
+.ex-entry-name { font-size: 15px; font-weight: 800; color: var(--text); }
+.set-header {
+  display: grid; grid-template-columns: 28px 1fr 1fr 28px; gap: 8px;
+  margin-bottom: 6px;
+}
+.set-header span { font-size: 9px; font-weight: 800; color: var(--sub); text-transform: uppercase; text-align: center; letter-spacing: .06em; }
+.set-row { display: grid; grid-template-columns: 28px 1fr 1fr 28px; gap: 8px; align-items: center; margin-bottom: 6px; }
+.set-num { font-size: 12px; font-weight: 800; color: var(--sub); text-align: center; }
+.set-input {
+  background: var(--input-bg); border: 1.5px solid var(--border);
+  border-radius: 9px; padding: 9px 6px;
+  font-size: 17px; font-weight: 800; color: var(--accent);
+  text-align: center; width: 100%; outline: none;
+  font-variant-numeric: tabular-nums; font-family: inherit;
+  transition: border-color .18s;
+}
+.set-input:focus { border-color: var(--accent); }
+.set-input.reps { color: var(--text); }
+.set-del { background: none; border: none; color: #333; font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; text-align: center; }
+.set-del:active { color: var(--red); }
+.add-set-btn {
+  width: 100%; padding: 9px; background: transparent;
+  border: 1px dashed var(--border); border-radius: 9px;
+  color: var(--sub); font-size: 12px; font-weight: 700;
+  cursor: pointer; font-family: inherit; margin-top: 4px;
+  transition: border-color .15s, color .15s; -webkit-appearance: none;
+}
+.add-set-btn:active { border-color: var(--accent); color: var(--accent); }
+.add-ex-btn {
+  width: 100%; padding: 14px; background: transparent;
+  border: 1.5px dashed rgba(0,122,255,.3); border-radius: 14px;
+  color: var(--accent); font-size: 13px; font-weight: 800;
+  cursor: pointer; font-family: inherit; margin-top: 4px;
+  transition: background .15s, border-color .15s;
+  letter-spacing: .04em; -webkit-appearance: none;
+}
+.add-ex-btn:active { background: rgba(0,122,255,.08); }
+
+/* ═══════ HISTORY ITEMS ═══════ */
+.hist-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 13px 0; border-bottom: 1px solid var(--border);
+}
+.hist-item:last-child { border-bottom: none; }
+.hist-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.ic-s { background: rgba(0,122,255,.12); }
+.ic-b { background: rgba(255,149,0,.12); }
+.hist-body { flex: 1; min-width: 0; }
+.hist-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.hist-detail { font-size: 12px; color: var(--sub); margin-top: 3px; line-height: 1.4; }
+.hist-right { text-align: right; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.hist-date { font-size: 10px; color: var(--sub); font-weight: 600; white-space: nowrap; }
+.rec-actions { display: flex; gap: 5px; }
+.btn-edit {
+  background: rgba(0,122,255,.08); border: 1px solid rgba(0,122,255,.2);
+  color: var(--accent); font-size: 11px; padding: 6px 10px; border-radius: 8px;
+  font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  cursor: pointer; -webkit-appearance: none; font-family: inherit;
+}
+.btn-edit:active { background: rgba(0,122,255,.2); }
+
+/* ═══════ CHART ═══════ */
+.chart-wrap { position: relative; height: 220px; }
+.chart-empty { text-align: center; padding: 50px 0; color: var(--sub); }
+.chart-empty .ei { font-size: 44px; margin-bottom: 10px; opacity: .3; display: block; }
+.chart-empty p { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.tab-bar {
+  display: flex; background: var(--card2); border-radius: 13px;
+  padding: 4px; margin-bottom: 14px; border: 1px solid var(--border);
+}
+.tab-btn {
+  flex: 1; padding: 10px; border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  background: transparent; color: var(--sub); transition: all .2s; font-family: inherit;
+}
+.tab-btn.active { background: var(--card); color: var(--accent); box-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.period-group { display: flex; gap: 4px; margin-bottom: 12px; justify-content: flex-end; }
+.period-btn {
+  padding: 5px 11px; border-radius: 7px;
+  border: 1px solid var(--border); font-size: 10px; font-weight: 800;
+  cursor: pointer; background: transparent; color: var(--sub);
+  transition: all .18s; font-family: inherit; -webkit-appearance: none;
+}
+.period-btn.active { background: rgba(0,122,255,.12); border-color: var(--accent); color: var(--accent); }
+
+/* ═══════ TOAST ═══════ */
+.toast {
+  position: fixed; top: 76px; left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  background: #1c1c1c; color: var(--text); border: 1px solid #2e2e2e;
+  padding: 12px 20px; border-radius: 12px;
+  font-size: 13px; font-weight: 700; z-index: 999;
+  opacity: 0; transition: all .25s; pointer-events: none; white-space: nowrap;
+  box-shadow: 0 8px 32px rgba(0,0,0,.7); letter-spacing: .03em;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ═══════ EMPTY ═══════ */
+.empty { text-align: center; padding: 44px 20px; color: var(--sub); }
+.empty .ei { font-size: 52px; margin-bottom: 12px; display: block; opacity: .25; }
+.empty p { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .1em; }
+
+/* ═══════ LIMIT BANNER ═══════ */
+.limit-banner {
+  background: linear-gradient(135deg, rgba(255,149,0,.1), rgba(255,85,0,.06));
+  border: 1px solid rgba(255,149,0,.25); border-radius: 16px;
+  padding: 14px 16px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 12px;
+}
+.limit-banner-icon { font-size: 30px; flex-shrink: 0; }
+.limit-banner-text { flex: 1; }
+.limit-banner-title { font-size: 13px; font-weight: 800; color: var(--amber); }
+.limit-banner-desc { font-size: 11px; color: var(--sub); margin-top: 3px; line-height: 1.5; }
+.upgrade-btn {
+  padding: 8px 14px; border-radius: 10px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--amber), #FF5500);
+  color: #fff; font-size: 12px; font-weight: 800;
+  white-space: nowrap; flex-shrink: 0; font-family: inherit;
+  -webkit-appearance: none;
+}
+
+/* ═══════ EDIT BANNER ═══════ */
+.edit-banner {
+  background: rgba(0,122,255,.08); border: 1px solid rgba(0,122,255,.3);
+  border-radius: 11px; padding: 10px 14px; margin-bottom: 14px;
+  font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .03em;
+}
+
+/* ═══════ PLAN BADGE ═══════ */
+.plan-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 11px; border-radius: 8px; font-size: 11px; font-weight: 800;
+}
+.plan-free { background: rgba(255,149,0,.12); color: var(--amber); border: 1px solid rgba(255,149,0,.25); }
+.plan-pro  { background: rgba(0,122,255,.12);  color: var(--accent); border: 1px solid rgba(0,122,255,.25); }
+
+/* ═══════ MODAL ═══════ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 500;
+  display: none; align-items: flex-end; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+  background: var(--card); border-radius: 20px 20px 0 0;
+  padding: 16px 20px calc(20px + env(safe-area-inset-bottom,0px));
+  width: 100%; max-width: 480px;
+}
+.modal-handle { width: 36px; height: 4px; background: #333; border-radius: 2px; margin: 0 auto 16px; }
+.modal-title { font-size: 16px; font-weight: 900; color: var(--text); margin-bottom: 16px; }
+.modal-btn {
+  width: 100%; padding: 14px; border-radius: 12px;
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+  margin-bottom: 8px; -webkit-appearance: none;
+}
+.modal-btn-out { background: rgba(255,59,48,.08); color: var(--red); border: 1px solid rgba(255,59,48,.18); }
+.modal-close {
+  width: 100%; padding: 14px; border: 1px solid var(--border); border-radius: 12px;
+  font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+  background: var(--card2); color: var(--sub); margin-top: 4px; -webkit-appearance: none;
+}
+
+/* ═══════ BTN RED ═══════ */
+.btn-red { background: linear-gradient(135deg, #FF3B30 0%, #FF2D55 100%); color: #fff; box-shadow: 0 6px 24px rgba(255,59,48,.3); }
+
+/* ═══════ SEARCH BAR ═══════ */
+.search-bar { position: relative; margin-bottom: 14px; }
+.search-bar input {
+  width: 100%; padding: 12px 14px 12px 42px;
+  border: 1.5px solid var(--border); border-radius: 14px;
+  font-size: 15px; color: var(--text); background: var(--card);
+  outline: none; transition: border-color .2s; font-family: inherit;
+}
+.search-bar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,122,255,.12); }
+.search-bar input::placeholder { color: var(--sub); }
+.search-bar::before { content: '🔍'; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
+
+/* ═══════ AUTOFILL HINT ═══════ */
+.autofill-hint {
+  font-size: 10px; color: var(--accent); margin-top: 6px; font-weight: 800;
+  display: none; letter-spacing: .05em; text-transform: uppercase;
+}
+
+/* ═══════ PROGRESS MSG ═══════ */
+.progress-msg {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 14px; margin-top: 10px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+.progress-msg .pm-icon { font-size: 20px; flex-shrink: 0; }
+.progress-msg .pm-text { flex: 1; line-height: 1.4; }
+.progress-msg .pm-sub  { font-size: 11px; color: var(--sub); font-weight: 600; margin-top: 2px; }
+
+/* ═══════ MINI CHART ═══════ */
+.mini-chart-wrap { position: relative; height: 100px; margin-top: 14px; }
+
+/* ═══════ TEMPLATE CHIP ═══════ */
+.tmpl-chip {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 14px; background: var(--card2); border: 1px solid var(--border);
+  border-radius: 12px; margin-bottom: 8px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.tmpl-chip:active { border-color: var(--accent); background: rgba(0,122,255,.06); }
+.tmpl-chip-name { font-size: 14px; font-weight: 800; color: var(--text); }
+.tmpl-chip-meta { font-size: 11px; color: var(--sub); margin-top: 3px; }
+.tmpl-chip-del { background: none; border: none; color: var(--sub); font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; }
+.tmpl-chip-del:active { color: var(--red); }
+
+/* ═══════ SESSION DETAIL EXPAND ═══════ */
+.sess-detail { display: none; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
+.hist-item.open .sess-detail { display: block; }
+.sess-ex-row { font-size: 12px; color: var(--sub); margin-bottom: 5px; line-height: 1.5; }
+.sess-ex-name { font-weight: 800; color: var(--text); }
+.sess-set-tag {
+  display: inline-block; padding: 2px 7px; border-radius: 5px;
+  background: rgba(0,122,255,.1); color: var(--accent);
+  font-size: 11px; font-weight: 700; margin: 2px 2px 0 0;
+}
+.pr-badge {
+  display: inline-block; padding: 2px 7px; border-radius: 5px;
+  background: rgba(255,215,0,.15); color: #FFD700;
+  border: 1px solid rgba(255,215,0,.3);
+  font-size: 10px; font-weight: 800; margin-left: 6px;
+  letter-spacing: .04em;
+}
+.expand-btn {
+  font-size: 10px; font-weight: 800; color: var(--accent);
+  background: none; border: none; cursor: pointer;
+  padding: 0; font-family: inherit; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* ═══════ HIST DATE SEP ═══════ */
+.hist-sep {
+  font-size: 10px; font-weight: 800; color: var(--sub);
+  text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 7px; padding: 0 2px;
+  display: flex; align-items: center; gap: 8px;
+}
+.hist-sep::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ═══════ DEMO BADGE ═══════ */
+.demo-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 8px;
+  font-size: 11px; font-weight: 900; letter-spacing: .08em;
+  background: linear-gradient(135deg, rgba(255,149,0,.25), rgba(255,85,0,.15));
+  color: var(--amber); border: 1px solid rgba(255,149,0,.4);
+  text-transform: uppercase;
+}
+
+/* ═══════ SKELETON ═══════ */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+.skeleton-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 15px 16px; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 14px;
+}
+.skeleton-avatar { width: 50px; height: 50px; border-radius: 14px; flex-shrink: 0; }
+.skeleton-line { height: 12px; border-radius: 6px; margin-bottom: 7px; }
+
+/* ═══════ FADE-IN ANIMATION ═══════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp .35s ease forwards;
+}
+.fade-in-up:nth-child(1) { animation-delay: .02s; }
+.fade-in-up:nth-child(2) { animation-delay: .06s; }
+.fade-in-up:nth-child(3) { animation-delay: .10s; }
+.fade-in-up:nth-child(4) { animation-delay: .14s; }
+.fade-in-up:nth-child(5) { animation-delay: .18s; }
+.fade-in-up:nth-child(n+6) { animation-delay: .22s; }
+
+/* ═══════ GOAL PROGRESS ═══════ */
+.goal-progress-wrap {
+  margin: 10px 0 4px;
+}
+.goal-progress-label {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; font-weight: 800; color: var(--sub);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+}
+.goal-progress-bar-bg {
+  background: rgba(255,255,255,.06); border-radius: 6px; height: 8px; overflow: hidden;
+}
+.goal-progress-bar-fill {
+  height: 100%; border-radius: 6px; transition: width .6s ease;
+}
+
+/* ═══════ MONTHLY SESSION CHART ═══════ */
+.monthly-bar-chart {
+  display: flex; align-items: flex-end; gap: 5px;
+  height: 64px; margin-top: 12px; padding-top: 4px;
+}
+.monthly-bar-col {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.monthly-bar-fill {
+  width: 100%; border-radius: 5px 5px 0 0;
+  transition: height .4s ease;
+}
+.monthly-bar-label {
+  font-size: 8px; font-weight: 800; color: var(--sub);
+  text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+}
+
+/* ═══════ DAYS BADGE ═══════ */
+.days-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 7px; border-radius: 6px;
+  font-size: 10px; font-weight: 800; margin-top: 4px;
+}
+.days-ok    { background: rgba(52,199,89,.12);  color: var(--green); }
+.days-warn  { background: rgba(255,149,0,.12);  color: var(--amber); }
+.days-alert { background: rgba(255,59,48,.12);  color: var(--red);   }
+.days-none  { background: rgba(96,96,96,.10);   color: var(--sub);   }
+
+/* ═══════ DASHBOARD STATS ═══════ */
+.dash-stats {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: 8px; margin-bottom: 14px;
+}
+.dash-stat {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 12px 8px; text-align: center;
+}
+.dash-stat-val   { font-size: 26px; font-weight: 900; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+.dash-stat-label { font-size: 9px;  font-weight: 800; color: var(--sub); text-transform: uppercase; letter-spacing: .07em; margin-top: 5px; }
+.dash-stat.alert .dash-stat-val { color: var(--red); }
+.dash-stat.ok    .dash-stat-val { color: var(--green); }
+
+/* ═══════ BODY MEAS TOGGLE ═══════ */
+.meas-toggle {
+  font-size: 10px; font-weight: 800; color: var(--accent);
+  cursor: pointer; text-transform: uppercase; letter-spacing: .07em;
+  display: flex; align-items: center; gap: 5px;
+  margin: 12px 0 8px; padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* ═══════ PRINT / REPORT ═══════ */
+.report-btn {
+  width: 100%; padding: 11px; margin-top: 8px;
+  background: linear-gradient(135deg, rgba(255,149,0,.15), rgba(255,85,0,.1));
+  border: 1px solid rgba(255,149,0,.3); border-radius: 12px;
+  color: var(--amber); font-size: 13px; font-weight: 800;
+  cursor: pointer; font-family: inherit; letter-spacing: .04em;
+  transition: all .18s; -webkit-appearance: none;
+}
+.report-btn:active { background: rgba(255,149,0,.25); }
+
+/* ═══════ PRINT STYLES ═══════ */
+@media print {
+  .header, .bottom-nav, .fab, .back-btn, .btn-cancel, .btn-ghost,
+  .report-btn, .rec-actions, .add-ex-btn, .add-set-btn,
+  .btn, nav, #auth-btn, #user-avatar, #sync-icon { display: none !important; }
+  body { background: #fff !important; color: #111 !important; padding-bottom: 0 !important; }
+  .card { background: #f9f9f9 !important; border: 1px solid #ddd !important;
+    box-shadow: none !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .view { display: block !important; padding: 0 !important; }
+  .view:not(.active) { display: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-size: 12px; }
+  .card { page-break-inside: avoid; }
+}
+
+/* ═══════ ONBOARDING ═══════ */
+.onboarding-overlay {
+  position: fixed; inset: 0; background: var(--bg);
+  z-index: 1000; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 24px;
+}
+.onboarding-slide { display: none; text-align: center; max-width: 360px; width: 100%; }
+.onboarding-slide.active { display: block; }
+.onboarding-icon { font-size: 72px; margin-bottom: 20px; }
+.onboarding-title {
+  font-size: 24px; font-weight: 900; color: var(--text);
+  margin-bottom: 10px; line-height: 1.2;
+}
+.onboarding-title strong {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.onboarding-desc { font-size: 14px; color: var(--sub); line-height: 1.8; margin-bottom: 32px; }
+.onboarding-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 28px; }
+.onboarding-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border); transition: background .3s, width .3s;
+}
+.onboarding-dot.active { background: var(--accent); width: 24px; border-radius: 4px; }
+.onboarding-btn {
+  width: 100%; padding: 18px; border: none; border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 16px; font-weight: 900;
+  cursor: pointer; font-family: inherit; letter-spacing: .06em;
+  box-shadow: 0 8px 30px rgba(0,122,255,.4);
+  transition: transform .12s, box-shadow .15s; -webkit-appearance: none;
+}
+.onboarding-btn:active { transform: scale(.96); }
+.onboarding-feature-list {
+  text-align: left; background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 16px; margin-bottom: 24px;
+}
+.onboarding-feature-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--text); font-weight: 700;
+}
+.onboarding-feature-item:last-child { border-bottom: none; }
+.onboarding-feature-item .fi-icon { font-size: 20px; flex-shrink: 0; }
+
+/* ═══════ LANDING ═══════ */
+#view-landing {
+  position: fixed; inset: 0; background: var(--bg);
+  z-index: 90; overflow-y: auto;
+  padding: 0 0 40px;
+}
+.landing-hero {
+  min-height: 60vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 60px 24px 40px; text-align: center;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,122,255,.12), transparent 70%);
+}
+.landing-logo { font-size: 56px; margin-bottom: 14px; }
+.landing-appname {
+  font-size: 32px; font-weight: 900; color: #fff; margin-bottom: 6px; line-height: 1.1;
+}
+.landing-appname span {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.landing-tagline { font-size: 15px; color: var(--sub); margin-bottom: 32px; line-height: 1.6; font-weight: 600; }
+.landing-cta-btn {
+  display: flex; align-items: center; gap: 10px;
+  padding: 18px 32px; border-radius: 16px; border: none; cursor: pointer;
+  background: #fff; color: #111; font-size: 15px; font-weight: 900;
+  font-family: inherit; letter-spacing: .02em;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  transition: transform .12s, box-shadow .15s; -webkit-appearance: none;
+  margin-bottom: 14px;
+}
+.landing-cta-btn:active { transform: scale(.96); }
+.landing-cta-btn img { width: 22px; height: 22px; }
+.landing-note { font-size: 12px; color: var(--sub); font-weight: 600; }
+.landing-section { padding: 24px 16px; }
+.landing-section-title {
+  font-size: 11px; font-weight: 800; color: var(--accent);
+  text-transform: uppercase; letter-spacing: .12em; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+.landing-section-title::before {
+  content: ''; display: block; width: 12px; height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 1px;
+}
+.landing-features-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px;
+}
+.landing-feature-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 16px; text-align: center;
+}
+.landing-feature-icon { font-size: 28px; margin-bottom: 8px; }
+.landing-feature-name { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.landing-feature-desc { font-size: 11px; color: var(--sub); line-height: 1.5; }
+.landing-plans { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+.landing-plan-card {
+  background: var(--card); border: 2px solid var(--border);
+  border-radius: 18px; padding: 18px; text-align: center;
+}
+.landing-plan-card.pro { border-color: var(--accent); background: rgba(0,122,255,.06); }
+.landing-plan-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 6px;
+  font-size: 10px; font-weight: 900; letter-spacing: .08em; margin-bottom: 10px;
+}
+.landing-plan-badge.free { background: rgba(96,96,96,.2); color: var(--sub); }
+.landing-plan-badge.pro-badge { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+.landing-plan-price { font-size: 22px; font-weight: 900; color: var(--text); margin-bottom: 4px; }
+.landing-plan-period { font-size: 11px; color: var(--sub); margin-bottom: 12px; }
+.landing-plan-features { text-align: left; font-size: 12px; color: var(--sub); line-height: 2; }
+.landing-footer {
+  padding: 24px 16px 40px; text-align: center;
+}
+.landing-footer-btn {
+  width: 100%; padding: 18px; border: none; border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 16px; font-weight: 900; cursor: pointer;
+  font-family: inherit; letter-spacing: .04em;
+  box-shadow: 0 8px 30px rgba(0,122,255,.4);
+  transition: transform .12s; -webkit-appearance: none; margin-bottom: 10px;
+}
+.landing-footer-btn:active { transform: scale(.96); }
+
+/* ═══════ NEXT SESSION BADGE ═══════ */
+.next-sess-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 8px; border-radius: 6px;
+  font-size: 10px; font-weight: 800; margin-top: 4px;
+}
+.ns-soon   { background: rgba(0,122,255,.12);  color: var(--accent); }
+.ns-week   { background: rgba(52,199,89,.12);   color: var(--green); }
+.ns-over   { background: rgba(255,59,48,.12);   color: var(--red); }
+.ns-none   { background: rgba(96,96,96,.1);     color: var(--sub); }
+
+/* ═══════ FAQ ═══════ */
+.faq-item {
+  border-bottom: 1px solid var(--border);
+}
+.faq-item:last-child { border-bottom: none; }
+.faq-question {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 0; background: none; border: none; color: var(--text);
+  font-size: 13px; font-weight: 800; cursor: pointer; font-family: inherit;
+  text-align: left; gap: 12px;
+}
+.faq-arrow { font-size: 12px; color: var(--sub); flex-shrink: 0; transition: transform .25s; }
+.faq-item.open .faq-arrow { transform: rotate(180deg); }
+.faq-answer {
+  display: none; font-size: 13px; color: var(--sub);
+  padding-bottom: 14px; line-height: 1.7;
+}
+.faq-item.open .faq-answer { display: block; }
+
+/* ═══════ PWA INSTALL BANNER ═══════ */
+.pwa-banner {
+  background: linear-gradient(135deg, rgba(0,122,255,.12), rgba(0,200,255,.08));
+  border: 1px solid rgba(0,122,255,.25); border-radius: 16px;
+  padding: 14px 16px; margin-bottom: 12px;
+  display: flex; align-items: center; gap: 12px;
+}
+.pwa-banner-icon { font-size: 28px; flex-shrink: 0; }
+.pwa-banner-text { flex: 1; }
+.pwa-banner-title { font-size: 13px; font-weight: 800; color: var(--accent); }
+.pwa-banner-desc { font-size: 11px; color: var(--sub); margin-top: 3px; line-height: 1.5; }
+.pwa-banner-actions { display: flex; gap: 8px; flex-shrink: 0; flex-direction: column; align-items: flex-end; }
+.pwa-install-btn {
+  padding: 8px 14px; border-radius: 10px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 12px; font-weight: 800;
+  white-space: nowrap; font-family: inherit; -webkit-appearance: none;
+}
+.pwa-dismiss-btn {
+  background: none; border: none; color: var(--sub);
+  font-size: 11px; cursor: pointer; font-family: inherit; padding: 2px 0;
+}
+
+/* ═══════ CLIENT CARD CONTEXT MENU ═══════ */
+.ctx-menu {
+  position: fixed; z-index: 400;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,.7);
+  min-width: 160px;
+}
+.ctx-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 13px 16px; font-size: 13px; font-weight: 700; color: var(--text);
+  cursor: pointer; border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.ctx-menu-item:last-child { border-bottom: none; }
+.ctx-menu-item:active { background: var(--card2); }
+.ctx-menu-item.danger { color: var(--red); }
+.ctx-menu-backdrop {
+  position: fixed; inset: 0; z-index: 399;
+}
+
+/* ═══════ SWIPE ACTION ═══════ */
+.client-card-wrap {
+  position: relative; overflow: hidden; border-radius: 16px; margin-bottom: 10px;
+}
+.swipe-actions {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  display: flex; align-items: stretch;
+  transform: translateX(100%); transition: transform .25s;
+}
+.swipe-actions.visible { transform: translateX(0); }
+.swipe-act {
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 18px; font-size: 12px; font-weight: 800;
+  cursor: pointer; white-space: nowrap;
+  flex-direction: column; gap: 4px;
+}
+.swipe-act-edit { background: var(--accent); color: #fff; }
+.swipe-act-del  { background: var(--red);    color: #fff; }
+.swipe-act-icon { font-size: 18px; }
+.client-card-wrap .client-card {
+  margin-bottom: 0; border-radius: 16px;
+  transition: transform .25s;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     ONBOARDING OVERLAY
+════════════════════════════════════════ -->
+<div id="onboarding-overlay" class="onboarding-overlay" style="display:none;">
+  <!-- Step 1 -->
+  <div class="onboarding-slide active" id="ob-slide-1">
+    <div class="onboarding-icon">🏋️</div>
+    <div class="onboarding-title">FitCoach <strong>Pro</strong> へようこそ</div>
+    <div class="onboarding-desc">
+      プロトレーナーのための<br>最高のクライアント管理ツール。<br>
+      セッション・体測定・グラフで<br>クライアントの成長を可視化しよう。
+    </div>
+  </div>
+  <!-- Step 2 -->
+  <div class="onboarding-slide" id="ob-slide-2">
+    <div class="onboarding-icon">👥</div>
+    <div class="onboarding-title">クライアント<strong>管理</strong></div>
+    <div class="onboarding-feature-list">
+      <div class="onboarding-feature-item"><span class="fi-icon">➕</span> クライアントを追加してプロフィール管理</div>
+      <div class="onboarding-feature-item"><span class="fi-icon">📋</span> 名前・年齢・目標・メモを記録</div>
+      <div class="onboarding-feature-item"><span class="fi-icon">🔍</span> 検索・フィルタで素早くアクセス</div>
+    </div>
+  </div>
+  <!-- Step 3 -->
+  <div class="onboarding-slide" id="ob-slide-3">
+    <div class="onboarding-icon">📊</div>
+    <div class="onboarding-title">セッション<strong>記録</strong></div>
+    <div class="onboarding-feature-list">
+      <div class="onboarding-feature-item"><span class="fi-icon">💪</span> セッションの種目・重量・回数を記録</div>
+      <div class="onboarding-feature-item"><span class="fi-icon">⚖️</span> 体重・体脂肪率の変化を追跡</div>
+      <div class="onboarding-feature-item"><span class="fi-icon">📈</span> グラフで進捗を視覚化</div>
+    </div>
+  </div>
+
+  <div class="onboarding-dots">
+    <div class="onboarding-dot active" id="ob-dot-1"></div>
+    <div class="onboarding-dot" id="ob-dot-2"></div>
+    <div class="onboarding-dot" id="ob-dot-3"></div>
+  </div>
+  <button class="onboarding-btn" id="ob-next-btn" onclick="onboardingNext()">次へ</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     LANDING VIEW
+════════════════════════════════════════ -->
+<div id="view-landing" style="display:none;">
+
+  <!-- ═══ HERO ═══ -->
+  <div class="landing-hero" style="background:radial-gradient(ellipse 100% 80% at 50% -10%, rgba(0,122,255,.2) 0%, rgba(0,200,255,.08) 40%, transparent 70%), var(--bg);">
+    <div class="landing-logo" style="font-size:64px;margin-bottom:10px;">🏋️</div>
+    <div class="landing-appname" style="font-size:36px;">FitCoach <span>Pro</span></div>
+    <div class="landing-tagline" style="font-size:17px;margin-bottom:8px;color:var(--text);font-weight:700;line-height:1.4;">
+      クライアントの成果を数字で証明する。<br>
+      <span style="color:var(--sub);font-size:14px;font-weight:600;">プロトレーナーのための完全管理ツール</span>
+    </div>
+    <div style="font-size:12px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:24px;text-transform:uppercase;">導入3分・無料ではじめる</div>
+    <button class="landing-cta-btn" onclick="signInWithGoogle(); gtag('event','login',{method:'google'});">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Googleでログイン
+    </button>
+    <div class="landing-note">無料ではじめられます · クレジットカード不要</div>
+  </div>
+
+  <!-- ═══ 数字で見る実績 ═══ -->
+  <div class="landing-section">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 10px;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:var(--accent);line-height:1;">5分</div>
+        <div style="font-size:10px;font-weight:800;color:var(--sub);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;">でセットアップ</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 10px;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:var(--green);line-height:1;">3名</div>
+        <div style="font-size:10px;font-weight:800;color:var(--sub);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;">まで完全無料</div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px 10px;text-align:center;">
+        <div style="font-size:28px;font-weight:900;color:var(--amber);line-height:1;">☁️</div>
+        <div style="font-size:10px;font-weight:800;color:var(--sub);margin-top:6px;text-transform:uppercase;letter-spacing:.06em;">クラウド保存</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 機能紹介 ═══ -->
+  <div class="landing-section">
+    <div class="landing-section-title">機能一覧</div>
+    <div class="landing-features-grid">
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon">👥</div>
+        <div class="landing-feature-name">クライアント管理</div>
+        <div class="landing-feature-desc">無制限のプロフィール・目標管理</div>
+      </div>
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon">💪</div>
+        <div class="landing-feature-name">セッション記録</div>
+        <div class="landing-feature-desc">種目・重量・レップ数を簡単記録</div>
+      </div>
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon">📊</div>
+        <div class="landing-feature-name">進捗グラフ</div>
+        <div class="landing-feature-desc">体重・種目の成長を可視化</div>
+      </div>
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon">📐</div>
+        <div class="landing-feature-name">体型測定</div>
+        <div class="landing-feature-desc">体重・体脂肪・各部位を記録</div>
+      </div>
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon">📋</div>
+        <div class="landing-feature-name">テンプレート</div>
+        <div class="landing-feature-desc">よく使うメニューを保存・再利用</div>
+      </div>
+      <div class="landing-feature-card">
+        <div class="landing-feature-icon">📄</div>
+        <div class="landing-feature-name">進捗レポート</div>
+        <div class="landing-feature-desc">クライアントに渡せるPDFレポート</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ 料金プラン ═══ -->
+  <div class="landing-section">
+    <div class="landing-section-title">料金プラン</div>
+    <div class="landing-plans">
+      <div class="landing-plan-card">
+        <div class="landing-plan-badge free">FREE</div>
+        <div class="landing-plan-price">¥0</div>
+        <div class="landing-plan-period">無料・永久</div>
+        <div class="landing-plan-features">
+          <div>✅ クライアント 3名まで</div>
+          <div>✅ セッション記録</div>
+          <div>✅ 体重グラフ</div>
+          <div>✅ テンプレート 3個</div>
+        </div>
+      </div>
+      <div class="landing-plan-card pro" style="position:relative;">
+        <div style="position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:9px;font-weight:900;padding:3px 10px;border-radius:6px;white-space:nowrap;letter-spacing:.06em;">おすすめ</div>
+        <div class="landing-plan-badge pro-badge">⭐ PRO</div>
+        <div class="landing-plan-price">¥4,980</div>
+        <div class="landing-plan-period">/月 · いつでも解約可</div>
+        <div class="landing-plan-features">
+          <div>✅ クライアント無制限</div>
+          <div>✅ 詳細体型測定</div>
+          <div>✅ テンプレート無制限</div>
+          <div>✅ 進捗レポートPDF</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ CTA ═══ -->
+  <div class="landing-footer">
+    <button class="landing-footer-btn" style="font-size:18px;padding:20px;" onclick="signInWithGoogle(); gtag('event','login',{method:'google'});">今すぐ無料で始める</button>
+    <div style="font-size:12px;color:var(--sub);margin-top:8px;">クレジットカード不要 · Googleアカウントで即時登録</div>
+    <button onclick="loadDemoData(); document.getElementById('view-landing').style.display='none'; document.querySelector('.bottom-nav').style.display='flex';" style="margin-top:16px;background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--sub);font-size:13px;font-weight:700;padding:12px 24px;border-radius:12px;cursor:pointer;font-family:inherit;letter-spacing:.04em;">🎮 まずデモを試す（登録不要）</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-title">
+    <span class="logo">🏋️</span>
+    <span>FitCoach <strong>Pro</strong></span>
+  </div>
+  <div class="header-right">
+    <span class="sync-icon" id="sync-icon" style="display:none;" onclick="openUserMenu()">⟳</span>
+    <button class="auth-btn" id="auth-btn" onclick="signInWithGoogle()" style="display:none;">ログイン</button>
+    <div class="user-avatar" id="user-avatar" onclick="openUserMenu()" style="display:none;"></div>
+    <div class="header-date">
+      <div class="day" id="hdr-day"></div>
+      <div class="year" id="hdr-date"></div>
+    </div>
+  </div>
+</header>
+
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════
+     VIEW: クライアント一覧
+════════════════════════════════════════ -->
+<div id="view-clients" class="view active">
+  <div id="pwa-install-banner" style="display:none;"></div>
+  <div id="dashboard-stats" class="dash-stats" style="display:none;"></div>
+  <div class="search-bar">
+    <input type="text" id="client-search" placeholder="クライアントを検索..." oninput="renderClientList()">
+  </div>
+  <div id="limit-banner" class="limit-banner" style="display:none;">
+    <div class="limit-banner-icon">⭐</div>
+    <div class="limit-banner-text">
+      <div class="limit-banner-title">無料プラン: 3名まで</div>
+      <div class="limit-banner-desc">Proにアップグレードで無制限のクライアント管理が可能になります</div>
+    </div>
+    <button class="upgrade-btn" onclick="showUpgrade()">Pro へ</button>
+  </div>
+  <div id="client-list"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VIEW: クライアント追加・編集
+════════════════════════════════════════ -->
+<div id="view-add-client" class="view">
+  <button class="back-btn" onclick="navBack()">← 戻る</button>
+  <div class="card">
+    <div class="card-label" id="add-client-label">New Client</div>
+    <div class="glow-line"></div>
+    <div id="add-client-edit-banner" class="edit-banner" style="display:none;"></div>
+
+    <div class="field">
+      <label>名前 *</label>
+      <input type="text" id="cl-name" placeholder="田中 太郎">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>年齢</label>
+        <input type="number" id="cl-age" placeholder="25" min="10" max="100" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label>性別</label>
+        <select id="cl-gender">
+          <option value="male">男性</option>
+          <option value="female">女性</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>目標</label>
+      <select id="cl-goal">
+        <option value="減量">減量</option>
+        <option value="増量">増量</option>
+        <option value="筋力向上">筋力向上</option>
+        <option value="健康維持">健康維持</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>開始日</label>
+        <input type="date" id="cl-start">
+      </div>
+      <div class="field">
+        <label>次回セッション予定日</label>
+        <input type="date" id="cl-next-session">
+      </div>
+    </div>
+    <div class="field">
+      <label>メモ (任意)</label>
+      <textarea id="cl-notes" placeholder="体の特徴、注意事項、目標の詳細など..."></textarea>
+    </div>
+
+    <button class="btn btn-primary" id="cl-save-btn" onclick="saveClient()">✓ 保存する</button>
+    <button class="btn btn-cancel" onclick="navBack()">✕ キャンセル</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VIEW: クライアント詳細
+════════════════════════════════════════ -->
+<div id="view-client-detail" class="view">
+  <button class="back-btn" onclick="navBack()">← クライアント一覧</button>
+  <div id="detail-content"></div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VIEW: セッション記録
+════════════════════════════════════════ -->
+<div id="view-session" class="view">
+  <button class="back-btn" onclick="navBack()">← 戻る</button>
+  <div class="card">
+    <div class="card-label">Session Log</div>
+    <div class="glow-line"></div>
+    <div id="session-edit-banner" class="edit-banner" style="display:none;"></div>
+
+    <div class="field">
+      <label>クライアント</label>
+      <select id="sess-client" onchange="onSessClientChange()"></select>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>日付</label>
+        <input type="date" id="sess-date">
+      </div>
+      <div class="field">
+        <label>時間 (分)</label>
+        <input type="number" id="sess-duration" placeholder="60" min="1" inputmode="decimal">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Exercises</div>
+    <div class="glow-line"></div>
+    <div id="autofill-hint" class="autofill-hint">⚡ 前回のセッションを自動入力しました</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <button class="btn-sm btn-sm-blue" style="flex:1;" onclick="showTemplateModal()">📋 テンプレート読み込み</button>
+      <button class="btn-sm btn-sm-green" style="flex:1;" onclick="saveAsTemplate()">💾 テンプレート保存</button>
+    </div>
+    <div id="ex-entries"></div>
+    <button class="add-ex-btn" onclick="syncExerciseData();addExercise()" style="background:linear-gradient(135deg,rgba(0,122,255,.12),rgba(0,200,255,.08));border:1.5px solid rgba(0,122,255,.4);color:var(--accent);font-size:14px;font-weight:900;padding:16px;border-radius:14px;letter-spacing:.04em;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <span style="font-size:20px;line-height:1;">＋</span> 種目を追加
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="field">
+      <label>メモ (任意)</label>
+      <textarea id="sess-notes" placeholder="セッションの感想、クライアントの様子など..."></textarea>
+    </div>
+    <button class="btn btn-primary" id="sess-save-btn" onclick="saveSession()">REC ＋ 記録する</button>
+    <button class="btn btn-cancel" id="sess-cancel-btn" onclick="cancelSessionEdit()" style="display:none;">✕ キャンセル</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VIEW: 体測定記録
+════════════════════════════════════════ -->
+<div id="view-body-record" class="view">
+  <button class="back-btn" onclick="navBack()">← 戻る</button>
+  <div class="card">
+    <div class="card-label">Body Measurement</div>
+    <div class="glow-line" style="background: linear-gradient(90deg, transparent, rgba(255,149,0,.25) 50%, transparent);"></div>
+    <div id="body-edit-banner" class="edit-banner" style="display:none;"></div>
+
+    <div class="field">
+      <label>クライアント</label>
+      <select id="body-client"></select>
+    </div>
+    <div class="field">
+      <label>日付</label>
+      <input type="date" id="body-date">
+    </div>
+    <div class="row2">
+      <div class="stat-field">
+        <label>体重</label>
+        <input type="number" id="body-weight" placeholder="70.0" min="1" step="0.1"
+               style="color:var(--amber);" inputmode="decimal">
+        <div class="stat-unit">kg</div>
+      </div>
+      <div class="stat-field">
+        <label>体脂肪率</label>
+        <input type="number" id="body-fat" placeholder="20.0" min="1" max="60" step="0.1"
+               style="color:var(--accent2);" inputmode="decimal">
+        <div class="stat-unit">%</div>
+      </div>
+    </div>
+
+    <div class="meas-toggle" onclick="isPro ? toggleExtraMeasurements() : showUpgrade()" id="extra-meas-toggle">
+      <span id="extra-meas-pro-badge" style="display:none;font-size:9px;background:rgba(255,149,0,.2);color:var(--amber);padding:2px 6px;border-radius:4px;font-weight:800;margin-right:4px;">PRO</span>
+      ＋ 詳細測定 (胸囲・腹囲・腕囲など) <span id="extra-meas-arrow">▾</span>
+    </div>
+    <div id="extra-measurements" style="display:none;">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;">
+        <div class="stat-field">
+          <label>胸囲</label>
+          <input type="number" id="body-chest" placeholder="95" min="0" step="0.5" inputmode="decimal" style="color:var(--accent);">
+          <div class="stat-unit">cm</div>
+        </div>
+        <div class="stat-field">
+          <label>腹囲</label>
+          <input type="number" id="body-waist" placeholder="80" min="0" step="0.5" inputmode="decimal" style="color:var(--accent);">
+          <div class="stat-unit">cm</div>
+        </div>
+        <div class="stat-field">
+          <label>臀囲</label>
+          <input type="number" id="body-hip" placeholder="95" min="0" step="0.5" inputmode="decimal" style="color:var(--accent);">
+          <div class="stat-unit">cm</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="stat-field">
+          <label>腕囲</label>
+          <input type="number" id="body-arm" placeholder="35" min="0" step="0.5" inputmode="decimal" style="color:var(--accent);">
+          <div class="stat-unit">cm</div>
+        </div>
+        <div class="stat-field">
+          <label>太腿囲</label>
+          <input type="number" id="body-thigh" placeholder="55" min="0" step="0.5" inputmode="decimal" style="color:var(--accent);">
+          <div class="stat-unit">cm</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-amber" id="body-save-btn" onclick="saveBodyRecord()" style="margin-top:12px;">REC ＋ 記録する</button>
+    <button class="btn btn-cancel" id="body-cancel-btn" onclick="cancelBodyEdit()" style="display:none;">✕ キャンセル</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VIEW: グラフ
+════════════════════════════════════════ -->
+<div id="view-graph" class="view">
+  <div class="field">
+    <label style="font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:7px;">クライアント</label>
+    <select id="graph-client" onchange="onGraphClientChange()">
+      <option value="">-- クライアントを選んでください --</option>
+    </select>
+  </div>
+
+  <div id="graph-content" style="display:none;">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="gTab('bw',this)">体重推移</button>
+      <button class="tab-btn" onclick="gTab('ex',this)">種目推移</button>
+    </div>
+
+    <div id="g-bw">
+      <div class="card">
+        <div class="card-label" style="color:var(--amber);">Body Weight Trend</div>
+        <div class="glow-line" style="background: linear-gradient(90deg, transparent, rgba(255,149,0,.2) 50%, transparent);"></div>
+        <div class="period-group">
+          <button class="period-btn" onclick="setPeriodBw('1m',this)">1ヶ月</button>
+          <button class="period-btn" onclick="setPeriodBw('3m',this)">3ヶ月</button>
+          <button class="period-btn active" onclick="setPeriodBw('all',this)">全期間</button>
+        </div>
+        <div class="chart-wrap" id="bw-chart-wrap"><canvas id="bw-chart"></canvas></div>
+      </div>
+    </div>
+
+    <div id="g-ex" style="display:none;">
+      <div class="card">
+        <div class="field" style="margin-bottom:0;">
+          <label>種目を選択</label>
+          <select id="ex-sel" onchange="drawExChart()">
+            <option value="">-- 種目を選んでください --</option>
+          </select>
+        </div>
+        <div class="period-group" style="margin-top:12px;margin-bottom:0;">
+          <button class="period-btn" onclick="setPeriodEx('1m',this)">1ヶ月</button>
+          <button class="period-btn" onclick="setPeriodEx('3m',this)">3ヶ月</button>
+          <button class="period-btn active" onclick="setPeriodEx('all',this)">全期間</button>
+        </div>
+        <div class="period-group" style="margin-top:6px;margin-bottom:0;">
+          <button class="period-btn active ex-mode-btn" onclick="setExMode('max',this)">最大重量</button>
+          <button class="period-btn ex-mode-btn" onclick="setExMode('vol',this)">総ボリューム ⭐</button>
+        </div>
+      </div>
+      <div class="card" id="ex-chart-card" style="display:none;">
+        <div class="card-label" id="ex-chart-label">Max Weight Trend</div>
+        <div class="glow-line"></div>
+        <div class="chart-wrap" id="ex-chart-wrap"><canvas id="ex-chart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="graph-empty" class="empty" style="display:none;">
+    <span class="ei">📊</span><p>クライアントを選択してください</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     VIEW: 設定
+════════════════════════════════════════ -->
+<div id="view-settings" class="view">
+  <div class="card">
+    <div class="card-label">Plan</div>
+    <div class="glow-line"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <div>
+        <div style="font-size:16px;font-weight:800;">現在のプラン</div>
+        <div id="plan-desc" style="font-size:12px;color:var(--sub);margin-top:3px;">クライアント 3名まで無料</div>
+      </div>
+      <span class="plan-badge plan-free" id="plan-badge">FREE</span>
+    </div>
+
+    <!-- 機能リスト -->
+    <div id="free-feature-list" style="margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">現在使える機能</div>
+      <div style="font-size:12px;color:var(--sub);line-height:2.2;">
+        <div>✅ クライアント管理 (3名まで)</div>
+        <div>✅ セッション記録・履歴</div>
+        <div>✅ 基本体型測定 (体重・体脂肪率)</div>
+        <div>✅ 体重グラフ・種目MAXグラフ</div>
+        <div style="color:#333;">⭐ 詳細体型測定 (胸囲・腹囲など) — Pro</div>
+        <div style="color:#333;">⭐ ボリュームグラフ — Pro</div>
+        <div style="color:#333;">⭐ テンプレート無制限 — Pro</div>
+        <div style="color:#333;">⭐ 進捗レポート生成 — Pro</div>
+      </div>
+    </div>
+    <div id="pro-feature-list" style="display:none;margin-bottom:14px;">
+      <div style="font-size:10px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;">⭐ Proの機能</div>
+      <div style="font-size:12px;color:var(--sub);line-height:2.2;">
+        <div style="color:var(--green);">✅ クライアント無制限</div>
+        <div style="color:var(--green);">✅ 詳細体型測定 (5項目)</div>
+        <div style="color:var(--green);">✅ テンプレート無制限</div>
+        <div style="color:var(--green);">✅ ボリュームグラフ</div>
+        <div style="color:var(--green);">✅ 進捗レポート生成</div>
+      </div>
+    </div>
+
+    <button class="btn btn-amber" id="settings-upgrade-btn" onclick="showUpgrade()">⭐ Pro にアップグレード — ¥4,980/月</button>
+  </div>
+
+  <div class="card" id="settings-trainer-card">
+    <div class="card-label">Trainer Profile</div>
+    <div class="glow-line"></div>
+    <div class="field">
+      <label>トレーナー名</label>
+      <input type="text" id="trainer-name" placeholder="山田 健一">
+    </div>
+    <div class="field">
+      <label>ジム・スタジオ名</label>
+      <input type="text" id="trainer-gym" placeholder="FIT Studio Tokyo">
+    </div>
+    <button class="btn btn-primary" onclick="saveTrainerProfile()">保存</button>
+  </div>
+
+  <div class="card">
+    <div class="card-label">Data</div>
+    <div class="glow-line"></div>
+    <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:13px;margin-bottom:8px;" onclick="exportData()">📤 エクスポート (JSON)</button>
+    <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:13px;margin-bottom:8px;" onclick="exportCSV()">📊 エクスポート (CSV)</button>
+    <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importData(event)">
+    <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:13px;" onclick="document.getElementById('import-file').click()">📥 インポート (JSON)</button>
+    <div style="font-size:10px;color:var(--sub);margin-top:8px;line-height:1.6;text-align:center;">
+      エクスポートしたバックアップファイルから復元。<br>既存データとマージされます。
+    </div>
+  </div>
+
+  <div class="card" id="demo-card">
+    <div class="card-label">Demo</div>
+    <div class="glow-line"></div>
+    <div style="font-size:13px;color:var(--sub);margin-bottom:12px;line-height:1.6;">サンプルデータを使って機能を試せます。</div>
+    <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:13px;margin-bottom:8px;" onclick="loadDemoData()">🎮 デモデータを読み込む</button>
+    <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:13px;color:var(--red);border-color:rgba(255,59,48,.3);" onclick="clearDemoData()">🗑️ デモデータを削除</button>
+  </div>
+
+  <div class="card">
+    <div class="card-label">FAQ</div>
+    <div class="glow-line"></div>
+    <div class="faq-item">
+      <button class="faq-question" onclick="toggleFaq(this)">
+        <span>支払い方法は？</span><span class="faq-arrow">▾</span>
+      </button>
+      <div class="faq-answer">クレジットカード（Stripe経由）でお支払いいただけます。デビットカード・一部プリペイドカードにも対応しています。</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-question" onclick="toggleFaq(this)">
+        <span>いつでもキャンセルできますか？</span><span class="faq-arrow">▾</span>
+      </button>
+      <div class="faq-answer">はい。設定画面または stripe.com/billing からいつでもキャンセル可能です。次の請求日以降は課金されません。</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-question" onclick="toggleFaq(this)">
+        <span>データのバックアップ方法は？</span><span class="faq-arrow">▾</span>
+      </button>
+      <div class="faq-answer">設定 → データ → エクスポート(JSON)からバックアップ可能です。Googleログイン時はクラウド自動同期されます。</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-question" onclick="toggleFaq(this)">
+        <span>複数の端末で使えますか？</span><span class="faq-arrow">▾</span>
+      </button>
+      <div class="faq-answer">Googleログインすれば複数端末でデータが同期されます。</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-question" onclick="toggleFaq(this)">
+        <span>無料プランでできることは？</span><span class="faq-arrow">▾</span>
+      </button>
+      <div class="faq-answer">クライアント3名まで、テンプレート3個まで利用可能です。セッション記録・体重グラフは無制限でご利用いただけます。</div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <div class="nav-item active" onclick="nav('clients',this)">
+    <span class="nav-icon">👥</span>クライアント
+  </div>
+  <div class="nav-item" onclick="nav('record',this)">
+    <span class="nav-icon">📝</span>記録
+  </div>
+  <div class="nav-item" onclick="nav('graph',this)">
+    <span class="nav-icon">📊</span>グラフ
+  </div>
+  <div class="nav-item" onclick="nav('settings',this)">
+    <span class="nav-icon">⚙️</span>設定
+  </div>
+</nav>
+
+<!-- FAB -->
+<button class="fab" id="fab" onclick="fabAction()">＋</button>
+
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="confirm-modal" onclick="closeConfirmModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="confirm-title">削除しますか？</div>
+    <div id="confirm-desc" style="font-size:13px;color:var(--sub);margin-bottom:20px;line-height:1.6;"></div>
+    <button class="btn btn-red" onclick="executeConfirm()">削除する</button>
+    <button class="modal-close" onclick="closeConfirmModal()" style="margin-top:8px;">キャンセル</button>
+  </div>
+</div>
+
+<!-- TEMPLATE MODAL -->
+<div class="modal-overlay" id="template-modal" onclick="closeTemplateModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📋 テンプレート</div>
+    <div id="template-list" style="max-height:60vh;overflow-y:auto;"></div>
+    <button class="modal-close" onclick="closeTemplateModal()" style="margin-top:8px;">キャンセル</button>
+  </div>
+</div>
+
+<!-- USER MENU MODAL -->
+<div class="modal-overlay" id="user-modal" onclick="closeUserMenu(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-user-name"></div>
+    <div style="font-size:12px;color:var(--sub);margin-top:-10px;margin-bottom:16px;" id="modal-user-email"></div>
+    <button class="modal-btn modal-btn-out" onclick="signOut()">ログアウト</button>
+    <button class="modal-close" onclick="closeUserMenu()">キャンセル</button>
+  </div>
+</div>
+
+<!-- UPGRADE MODAL -->
+<div class="modal-overlay" id="upgrade-modal" onclick="closeUpgradeModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:800;color:var(--amber);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Upgrade</div>
+      <div style="font-size:22px;font-weight:900;color:#fff;">FitCoach <span style="background:linear-gradient(90deg,#FF9500,#FF5500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Pro</span></div>
+      <div style="font-size:13px;color:var(--sub);margin-top:4px;">プロトレーナーのための全機能</div>
+    </div>
+
+    <!-- 機能比較テーブル -->
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.06em;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <span>機能</span><span style="text-align:center;">FREE</span><span style="text-align:center;color:var(--amber);">PRO</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text);font-weight:700;">クライアント数</span>
+        <span style="text-align:center;color:var(--sub);">3名</span>
+        <span style="text-align:center;color:var(--amber);font-weight:800;">無制限</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text);font-weight:700;">セッション記録</span>
+        <span style="text-align:center;">✅</span>
+        <span style="text-align:center;">✅</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text);font-weight:700;">テンプレート</span>
+        <span style="text-align:center;color:var(--sub);">3個</span>
+        <span style="text-align:center;color:var(--amber);font-weight:800;">無制限</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text);font-weight:700;">詳細体型測定</span>
+        <span style="text-align:center;color:var(--sub);">❌</span>
+        <span style="text-align:center;color:var(--amber);">✅</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text);font-weight:700;">ボリュームグラフ</span>
+        <span style="text-align:center;color:var(--sub);">❌</span>
+        <span style="text-align:center;color:var(--amber);">✅</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;">
+        <span style="color:var(--text);font-weight:700;">進捗レポート生成</span>
+        <span style="text-align:center;color:var(--sub);">❌</span>
+        <span style="text-align:center;color:var(--amber);">✅</span>
+      </div>
+    </div>
+
+    <div id="upgrade-login-note" style="display:none;font-size:12px;color:var(--amber);margin-bottom:12px;text-align:center;">💡 決済にはGoogleログインが必要です</div>
+    <button class="btn btn-amber" onclick="startUpgrade()" style="font-size:16px;padding:18px;">¥4,980 / 月で始める</button>
+    <div style="font-size:11px;color:var(--sub);text-align:center;margin-top:10px;line-height:1.8;">
+      いつでもキャンセル可能 · 決済後すぐに有効化<br>
+      <span style="color:var(--accent);cursor:pointer;font-weight:700;" onclick="refreshProStatus()">✓ すでに支払い済みの方はこちら</span>
+    </div>
+    <button class="modal-close" onclick="closeUpgradeModal()" style="margin-top:8px;">後で</button>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────
+   CONSTANTS & STORAGE
+───────────────────────────────────────── */
+// ────────────────────────────────────────────────────────
+// Stripe Payment Link の設定手順:
+//  1. https://dashboard.stripe.com/payment-links で作成
+//  2. 「詳細設定」→「クライアントリファレンスID」を有効化
+//  3. 成功後のリダイレクトURL:
+//       https://fitcoachpro-app.netlify.app?upgraded=success
+//  4. 以下の URL を実際の Payment Link URL に差し替え
+//
+// Webhook エンドポイント (Stripeダッシュボードに登録):
+//   https://us-central1-pt-manager-57190.cloudfunctions.net/stripeWebhook
+//   受信イベント: checkout.session.completed / customer.subscription.deleted
+// ────────────────────────────────────────────────────────
+const PRO_PAYMENT_URL = 'https://buy.stripe.com/test_bJeaEY2xA7d32AWeEHdfG00';
+let isPro = false;
+
+const FREE_LIMIT = 3;
+const K = { clients: 'pt_clients', sessions: 'pt_sessions', body: 'pt_body', settings: 'pt_settings', templates: 'pt_templates' };
+
+function load(k)    { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
+function loadObj(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } }
+function save(k, d) { localStorage.setItem(k, JSON.stringify(d)); scheduleSync(); }
+function saveObj(k, d) { localStorage.setItem(k, JSON.stringify(d)); scheduleSync(); }
+
+/* ─────────────────────────────────────────
+   UTILS
+───────────────────────────────────────── */
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function jstNow() { return new Date(Date.now() + 9 * 60 * 60 * 1000); }
+function today() { return jstNow().toISOString().slice(0, 10); }
+function parseDate(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  const dow = new Date(Date.UTC(y, m - 1, d, 12)).getUTCDay();
+  return { y, m, d, dow };
+}
+function fmtDateFull(s) {
+  if (!s) return '';
+  const { m, d, dow } = parseDate(s);
+  return `${m}/${d}(${['日','月','火','水','木','金','土'][dow]})`;
+}
+function fmtDateShort(s) {
+  if (!s) return '';
+  const { m, d } = parseDate(s);
+  return `${m}/${d}`;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function emptyHTML(icon, msg) {
+  return `<div class="empty"><span class="ei">${icon}</span><p>${msg}</p></div>`;
+}
+
+let _toastTimer;
+function toast(msg) {
+  clearTimeout(_toastTimer);
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+/* ─────────────────────────────────────────
+   NAVIGATION STATE
+───────────────────────────────────────── */
+let currentNavTab = 'clients';
+let viewHistory   = [];
+let selectedClientId   = null;
+let editingClientId    = null;
+let editingSessionId   = null;
+let editingBodyId      = null;
+let bwChart = null, exChart = null;
+let graphPeriod = { bw: 'all', ex: 'all' };
+let graphClientId = null;
+let graphExMode = 'max'; // 'max' | 'vol'
+
+// Session form state
+let sessionExercises = []; // [{exId, name, sets:[{setId,weight,reps}]}]
+let _histShowCounts  = {}; // { clientId: { sess: N, body: N } }
+
+const VIEWS = ['clients','add-client','client-detail','session','body-record','graph','settings'];
+
+function showView(viewId) {
+  VIEWS.forEach(v => {
+    const el = document.getElementById('view-' + v);
+    if (el) el.classList.remove('active');
+  });
+  const el = document.getElementById('view-' + viewId);
+  if (el) el.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function nav(tab, el) {
+  currentNavTab = tab;
+  viewHistory = [];
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+
+  const fab = document.getElementById('fab');
+
+  if (tab === 'clients') {
+    showView('clients');
+    renderClientList();
+    fab.style.display = 'flex';
+  } else if (tab === 'record') {
+    if (!load(K.clients).length) {
+      toast('💡 まずクライアントを追加してください');
+      return;
+    }
+    showView('session');
+    initSessionForm(null);
+    fab.style.display = 'none';
+  } else if (tab === 'graph') {
+    showView('graph');
+    fillGraphClientSel();
+    fab.style.display = 'none';
+  } else if (tab === 'settings') {
+    showView('settings');
+    loadTrainerProfile();
+    fab.style.display = 'none';
+  }
+}
+
+function navTo(viewId) {
+  viewHistory.push(document.querySelector('.view.active').id.replace('view-', ''));
+  showView(viewId);
+  const fab = document.getElementById('fab');
+  fab.style.display = (viewId === 'clients') ? 'flex' : 'none';
+}
+
+function navBack() {
+  const prev = viewHistory.pop();
+  if (!prev) { nav('clients', document.querySelector('.nav-item')); return; }
+  showView(prev);
+  if (prev === 'clients') {
+    renderClientList();
+    document.getElementById('fab').style.display = 'flex';
+  } else if (prev === 'client-detail' && selectedClientId) {
+    renderClientDetail(selectedClientId);
+    document.getElementById('fab').style.display = 'none';
+  }
+}
+
+function fabAction() {
+  if (currentNavTab === 'clients') {
+    openAddClient(null);
+  }
+}
+
+/* ─────────────────────────────────────────
+   ONBOARDING
+───────────────────────────────────────── */
+let _obStep = 1;
+
+function showOnboarding() {
+  document.getElementById('onboarding-overlay').style.display = 'flex';
+}
+
+function hideOnboarding() {
+  document.getElementById('onboarding-overlay').style.display = 'none';
+  localStorage.setItem('fc_onboarded', '1');
+}
+
+function onboardingNext() {
+  if (_obStep < 3) {
+    document.getElementById('ob-slide-' + _obStep).classList.remove('active');
+    _obStep++;
+    document.getElementById('ob-slide-' + _obStep).classList.add('active');
+    // ドット更新
+    document.querySelectorAll('.onboarding-dot').forEach((d, i) => {
+      d.classList.toggle('active', i + 1 === _obStep);
+    });
+    if (_obStep === 3) {
+      document.getElementById('ob-next-btn').textContent = 'はじめる';
+    }
+  } else {
+    hideOnboarding();
+  }
+}
+
+/* ─────────────────────────────────────────
+   LANDING
+───────────────────────────────────────── */
+function showLanding() {
+  document.getElementById('view-landing').style.display = 'block';
+}
+
+function hideLanding() {
+  document.getElementById('view-landing').style.display = 'none';
+}
+
+/* ─────────────────────────────────────────
+   FAQ
+───────────────────────────────────────── */
+function toggleFaq(btn) {
+  const item = btn.closest('.faq-item');
+  item.classList.toggle('open');
+}
+
+/* ─────────────────────────────────────────
+   INIT
+───────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  const d = jstNow();
+  const wd = ['日','月','火','水','木','金','土'][d.getUTCDay()];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('hdr-day').textContent  = `${d.getUTCDate()} ${months[d.getUTCMonth()]} (${wd})`;
+  document.getElementById('hdr-date').textContent = `${d.getUTCFullYear()}`;
+  renderClientList();
+  initFirebase();
+  handleUpgradeRedirect();
+  // Free時: ProバッジをON
+  if (!isPro) {
+    const b = document.getElementById('extra-meas-pro-badge');
+    if (b) b.style.display = 'inline';
+  }
+  // オンボーディング（初回のみ）
+  if (!localStorage.getItem('fc_onboarded')) {
+    showOnboarding();
+  }
+});
+
+// Stripe決済完了リダイレクト処理 (?upgraded=success)
+function handleUpgradeRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('upgraded') !== 'success') return;
+  // URLパラメータをクリア (履歴に残さない)
+  window.history.replaceState({}, '', window.location.pathname);
+  toast('🎉 決済完了！Proステータスを確認中...');
+  // Firebase初期化後にProチェック (最大5回・3秒間隔)
+  let n = 0;
+  const poll = setInterval(() => {
+    if (fbAuth && fbAuth.currentUser) {
+      checkProStatus(fbAuth.currentUser.uid);
+      clearInterval(poll);
+    } else if (++n >= 5) {
+      clearInterval(poll);
+      toast('💡 ログインしてProステータスを確認してください');
+    }
+  }, 3000);
+}
+
+/* ─────────────────────────────────────────
+   CLIENT MANAGEMENT
+───────────────────────────────────────── */
+function renderClientList() {
+  const allClients = load(K.clients);
+  const query = (document.getElementById('client-search')?.value || '').toLowerCase();
+  const clients = query ? allClients.filter(c => c.name.toLowerCase().includes(query)) : allClients;
+  const el = document.getElementById('client-list');
+  const banner = document.getElementById('limit-banner');
+
+  banner.style.display = (!isPro && allClients.length >= FREE_LIMIT) ? 'flex' : 'none';
+
+  const dashEl = document.getElementById('dashboard-stats');
+
+  if (!allClients.length) {
+    dashEl.style.display = 'none';
+    el.innerHTML = `
+      <div class="card" style="text-align:center;padding:28px 20px;">
+        <div style="font-size:48px;margin-bottom:14px;">🏋️</div>
+        <div style="font-size:18px;font-weight:900;margin-bottom:8px;">FitCoach Pro へようこそ</div>
+        <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:20px;">
+          クライアントを追加して<br>セッション・体測定を記録しよう
+        </div>
+        <button class="btn btn-primary" onclick="openAddClient(null)">＋ 最初のクライアントを追加</button>
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
+          <div style="font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;">使い方</div>
+          <div style="font-size:12px;color:var(--sub);line-height:2;">
+            <div>① クライアントを追加 (＋ボタン)</div>
+            <div>② 詳細画面でセッション・体重を記録</div>
+            <div>③ グラフで進捗を確認</div>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+  if (!clients.length) {
+    dashEl.style.display = 'none';
+    el.innerHTML = emptyHTML('🔍', '該当するクライアントがいません');
+    return;
+  }
+
+  const sessions = load(K.sessions);
+  const bodies   = load(K.body);
+  const thisMonth = today().slice(0, 7);
+  const todayStr  = today();
+
+  // ダッシュボード統計
+  const monthSessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
+  const needsAttention = allClients.filter(c => {
+    const last = sessions.filter(s => s.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date))[0];
+    if (!last) return true;
+    const days = Math.floor((Date.now() - new Date(last.date + 'T12:00:00').getTime()) / 86400000);
+    return days > 14;
+  }).length;
+  dashEl.style.display = 'grid';
+  dashEl.innerHTML = `
+    <div class="dash-stat">
+      <div class="dash-stat-val">${allClients.length}</div>
+      <div class="dash-stat-label">Clients</div>
+    </div>
+    <div class="dash-stat ok">
+      <div class="dash-stat-val">${monthSessions}</div>
+      <div class="dash-stat-label">今月</div>
+    </div>
+    <div class="dash-stat ${needsAttention > 0 ? 'alert' : ''}">
+      <div class="dash-stat-val">${needsAttention}</div>
+      <div class="dash-stat-label">要フォロー</div>
+    </div>`;
+
+  el.innerHTML = clients.map(c => {
+    const cSessions  = sessions.filter(s => s.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date));
+    const sessCount  = cSessions.length;
+    const lastSess   = cSessions[0];
+    const latestBody = bodies.filter(b => b.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date))[0];
+    const initial    = (c.name || '?')[0].toUpperCase();
+    const genderLabel = c.gender === 'male' ? '男性' : c.gender === 'female' ? '女性' : 'その他';
+    const meta = [c.age ? c.age + '歳' : null, genderLabel, latestBody ? latestBody.weight + 'kg' : null].filter(Boolean).join(' · ');
+
+    let daysBadge = '';
+    if (lastSess) {
+      const days = Math.floor((Date.now() - new Date(lastSess.date + 'T12:00:00').getTime()) / 86400000);
+      const cls  = days <= 7 ? 'days-ok' : days <= 14 ? 'days-warn' : 'days-alert';
+      const lbl  = days === 0 ? '今日' : days === 1 ? '昨日' : days + '日前';
+      daysBadge  = `<div class="days-badge ${cls}">${lbl}</div>`;
+    } else {
+      daysBadge  = `<div class="days-badge days-none">未記録</div>`;
+    }
+
+    let nextSessBadge = '';
+    if (c.nextSessionDate) {
+      const nsDiff = Math.floor((new Date(c.nextSessionDate + 'T12:00:00').getTime() - Date.now()) / 86400000);
+      if (nsDiff < 0) {
+        nextSessBadge = `<div class="next-sess-badge ns-over">次回 ${Math.abs(nsDiff)}日超過</div>`;
+      } else if (nsDiff <= 3) {
+        nextSessBadge = `<div class="next-sess-badge ns-soon">次回まで${nsDiff}日</div>`;
+      } else if (nsDiff <= 7) {
+        nextSessBadge = `<div class="next-sess-badge ns-week">次回まで${nsDiff}日</div>`;
+      } else {
+        nextSessBadge = `<div class="next-sess-badge ns-none">次回まで${nsDiff}日</div>`;
+      }
+    }
+
+    return `
+      <div class="client-card" onclick="openClientDetail('${c.id}')">
+        <div class="client-avatar">${esc(initial)}</div>
+        <div class="client-info">
+          <div class="client-name">${esc(c.name)}</div>
+          <div class="client-meta">${esc(meta)}</div>
+          <div><span class="goal-badge goal-${c.goal}">${esc(c.goal)}</span></div>
+          ${nextSessBadge}
+        </div>
+        <div class="client-right">
+          <div class="client-sessions">${sessCount}</div>
+          <div class="client-sessions-label">sessions</div>
+          ${daysBadge}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openAddClient(clientId) {
+  const clients = load(K.clients);
+  if (!clientId && !isPro && clients.length >= FREE_LIMIT) {
+    showUpgrade();
+    return;
+  }
+  editingClientId = clientId;
+  const label  = document.getElementById('add-client-label');
+  const banner = document.getElementById('add-client-edit-banner');
+  const saveBtn = document.getElementById('cl-save-btn');
+
+  if (clientId) {
+    const c = clients.find(c => c.id === clientId);
+    if (!c) return;
+    document.getElementById('cl-name').value         = c.name    || '';
+    document.getElementById('cl-age').value          = c.age     || '';
+    document.getElementById('cl-gender').value       = c.gender  || 'male';
+    document.getElementById('cl-goal').value         = c.goal    || '減量';
+    document.getElementById('cl-start').value        = c.startDate || '';
+    document.getElementById('cl-next-session').value = c.nextSessionDate || '';
+    document.getElementById('cl-notes').value        = c.notes   || '';
+    label.textContent = 'Edit Client';
+    banner.textContent = `✏️ 編集中: ${c.name}`;
+    banner.style.display = 'block';
+    saveBtn.textContent = '✓ 更新する';
+  } else {
+    document.getElementById('cl-name').value         = '';
+    document.getElementById('cl-age').value          = '';
+    document.getElementById('cl-gender').value       = 'male';
+    document.getElementById('cl-goal').value         = '減量';
+    document.getElementById('cl-start').value        = today();
+    document.getElementById('cl-next-session').value = '';
+    document.getElementById('cl-notes').value        = '';
+    label.textContent = 'New Client';
+    banner.style.display = 'none';
+    saveBtn.textContent = '✓ 保存する';
+  }
+  navTo('add-client');
+}
+
+function saveClient() {
+  const name = document.getElementById('cl-name').value.trim();
+  if (!name) { toast('❌ 名前を入力してください'); return; }
+
+  // Free制限チェック（バイパス防止）
+  if (!editingClientId && !isPro && load(K.clients).length >= FREE_LIMIT) {
+    showUpgrade(); return;
+  }
+
+  const data = {
+    name,
+    age:             parseInt(document.getElementById('cl-age').value) || null,
+    gender:          document.getElementById('cl-gender').value,
+    goal:            document.getElementById('cl-goal').value,
+    startDate:       document.getElementById('cl-start').value || today(),
+    nextSessionDate: document.getElementById('cl-next-session').value || null,
+    notes:           document.getElementById('cl-notes').value.trim(),
+  };
+
+  const clients = load(K.clients);
+  if (editingClientId) {
+    const idx = clients.findIndex(c => c.id === editingClientId);
+    if (idx !== -1) clients[idx] = { ...clients[idx], ...data };
+    toast('✅ クライアント情報を更新しました');
+  } else {
+    clients.push({ id: uid(), createdAt: Date.now(), ...data });
+    toast('🎉 クライアントを追加しました！');
+  }
+  save(K.clients, clients);
+  editingClientId = null;
+  navBack();
+  renderClientList();
+}
+
+function openClientDetail(clientId) {
+  selectedClientId = clientId;
+  _histShowCounts[clientId] = { sess: 5, body: 5 }; // 毎回リセット
+  renderClientDetail(clientId);
+  navTo('client-detail');
+  document.getElementById('fab').style.display = 'none';
+}
+
+function renderClientDetail(clientId) {
+  const c        = load(K.clients).find(c => c.id === clientId);
+  const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => b.date.localeCompare(a.date));
+  const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => b.date.localeCompare(a.date));
+  const el       = document.getElementById('detail-content');
+  if (!c) { el.innerHTML = emptyHTML('❓','クライアントが見つかりません'); return; }
+
+  const initial = (c.name || '?')[0].toUpperCase();
+  const genderLabel = c.gender === 'male' ? '男性' : c.gender === 'female' ? '女性' : 'その他';
+  const totalVol = sessions.reduce((sum, s) => {
+    return sum + (s.exercises || []).reduce((es, ex) => {
+      return es + (ex.sets || []).reduce((ss, st) => ss + (st.weight||0) * (st.reps||0), 0);
+    }, 0);
+  }, 0);
+  const thisMonth = today().slice(0, 7);
+  const monthlySessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
+
+  // Latest body data
+  const latestBody = bodies[0];
+  const prevBody   = bodies[1];
+  let bwHTML = '';
+  let progressHTML = '';
+  if (latestBody) {
+    const diff = prevBody ? (latestBody.weight - prevBody.weight) : null;
+    let diffHTML = '';
+    if (diff !== null) {
+      const sign  = diff > 0 ? '▲' : diff < 0 ? '▼' : '±';
+      const color = diff > 0 ? 'var(--red)' : diff < 0 ? 'var(--green)' : 'var(--sub)';
+      diffHTML = `<span class="bw-diff" style="color:${color};">${sign}${Math.abs(diff).toFixed(1)}kg</span>`;
+    }
+    bwHTML = `
+      <div class="bw-hero">
+        <span class="bw-big">${latestBody.weight}</span>
+        <span class="bw-kg">kg</span>
+        ${diffHTML}
+      </div>
+      ${latestBody.fatPct != null ? `<div class="fat-row"><span class="fat-val">体脂肪 ${latestBody.fatPct}%</span></div>` : ''}
+      <div class="bw-date">${fmtDateFull(latestBody.date)}</div>`;
+
+    // 進捗メッセージ（30日前比）
+    const cutoff30 = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0,10);
+    const oldBody  = bodies.filter(b => b.date <= cutoff30).sort((a,b) => b.date.localeCompare(a.date))[0];
+    if (oldBody) {
+      const d30 = latestBody.weight - oldBody.weight;
+      const icon = d30 < -1 ? '🎉' : d30 > 1 ? '📈' : '➡️';
+      const color = d30 < 0 ? 'var(--green)' : d30 > 0 ? 'var(--red)' : 'var(--sub)';
+      const sign  = d30 > 0 ? '+' : '';
+      progressHTML = `
+        <div class="progress-msg">
+          <div class="pm-icon">${icon}</div>
+          <div class="pm-text">
+            30日間で <strong style="color:${color};">${sign}${d30.toFixed(1)}kg</strong>
+            <div class="pm-sub">${fmtDateFull(oldBody.date)} 時点: ${oldBody.weight}kg</div>
+          </div>
+        </div>`;
+    }
+    // ミニチャート用データを埋め込み
+    if (bodies.length >= 2) {
+      bwHTML += `<div class="mini-chart-wrap"><canvas id="mini-bw-chart"></canvas></div>`;
+    }
+  }
+
+  // 表示件数
+  const _sc = _histShowCounts[clientId] || { sess: 5, body: 5 };
+
+  // Session history
+  const sessHTML = sessions.length
+    ? sessions.slice(0, _sc.sess).map(s => {
+        const exList = (s.exercises||[]).map(e => e.name).join(', ');
+        const vol    = (s.exercises||[]).reduce((sum, ex) =>
+          sum + (ex.sets||[]).reduce((ss, st) => ss + (st.weight||0)*(st.reps||0), 0), 0);
+        const detailHTML = (s.exercises||[]).map(ex => {
+          const setTags = (ex.sets||[]).filter(st => st.reps > 0)
+            .map(st => `<span class="sess-set-tag">${st.weight||0}kg×${st.reps}</span>`).join('');
+          return `<div class="sess-ex-row"><span class="sess-ex-name">${esc(ex.name)}</span><br>${setTags}</div>`;
+        }).join('') + (s.notes ? `<div style="margin-top:8px;font-size:12px;color:var(--sub);line-height:1.5;">📝 ${esc(s.notes)}</div>` : '');
+        return `
+          <div class="hist-item" id="hi-${s.id}">
+            <div class="hist-icon ic-s">💪</div>
+            <div class="hist-body">
+              <div class="hist-title">${exList || 'セッション'}</div>
+              <div class="hist-detail">${s.duration ? s.duration+'分' : ''} ${vol > 0 ? '· VOL '+vol.toLocaleString()+'kg' : ''}</div>
+              ${detailHTML ? `<div class="sess-detail">${detailHTML}</div>` : ''}
+            </div>
+            <div class="hist-right">
+              <div class="hist-date">${fmtDateFull(s.date)}</div>
+              ${detailHTML ? `<button class="expand-btn" onclick="toggleSessDetail('${s.id}')">詳細 ▾</button>` : ''}
+              <div class="rec-actions">
+                <button class="btn-edit" onclick="editSession('${s.id}')">編集</button>
+                <button class="btn btn-ghost" onclick="delSession('${s.id}')">DEL</button>
+              </div>
+            </div>
+          </div>`;
+      }).join('')
+      + (sessions.length > _sc.sess
+          ? `<button onclick="loadMoreSessions('${clientId}')" style="width:100%;padding:11px;margin-top:4px;background:transparent;border:1px dashed var(--border);border-radius:10px;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">▾ もっと見る (残り ${sessions.length - _sc.sess} 件)</button>`
+          : '')
+    : emptyHTML('📝', 'NO SESSIONS YET');
+
+  const bodyHTML = bodies.length
+    ? bodies.slice(0, _sc.body).map(b => {
+        const extras = [
+          b.chest != null ? `胸${b.chest}` : null,
+          b.waist != null ? `腹${b.waist}` : null,
+          b.hip   != null ? `臀${b.hip}`   : null,
+          b.arm   != null ? `腕${b.arm}`   : null,
+          b.thigh != null ? `腿${b.thigh}` : null,
+        ].filter(Boolean).join(' / ');
+        return `
+        <div class="hist-item">
+          <div class="hist-icon ic-b">⚖️</div>
+          <div class="hist-body">
+            <div class="hist-title">${b.weight} kg${b.fatPct != null ? ` · 体脂肪 ${b.fatPct}%` : ''}</div>
+            ${extras ? `<div class="hist-detail">${extras} cm</div>` : ''}
+          </div>
+          <div class="hist-right">
+            <div class="hist-date">${fmtDateFull(b.date)}</div>
+            <div class="rec-actions">
+              <button class="btn-edit" onclick="editBodyRecord('${b.id}')">編集</button>
+              <button class="btn btn-ghost" onclick="delBodyRecord('${b.id}')">DEL</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')
+      + (bodies.length > _sc.body
+          ? `<button onclick="loadMoreBody('${clientId}')" style="width:100%;padding:11px;margin-top:4px;background:transparent;border:1px dashed var(--border);border-radius:10px;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">▾ もっと見る (残り ${bodies.length - _sc.body} 件)</button>`
+          : '')
+    : emptyHTML('⚖️', 'NO DATA YET');
+
+  let nextSessDetailHTML = '';
+  if (c.nextSessionDate) {
+    const nsDiff = Math.floor((new Date(c.nextSessionDate + 'T12:00:00').getTime() - Date.now()) / 86400000);
+    const nsColor = nsDiff < 0 ? 'var(--red)' : nsDiff <= 3 ? 'var(--accent)' : 'var(--green)';
+    nextSessDetailHTML = `<div style="margin-top:6px;font-size:12px;font-weight:800;color:${nsColor};">📅 次回予定: ${fmtDateFull(c.nextSessionDate)}${nsDiff >= 0 ? ' (あと'+nsDiff+'日)' : ' ('+Math.abs(nsDiff)+'日超過)'}</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="card">
+      <div class="detail-header">
+        <div class="detail-avatar">${esc(initial)}</div>
+        <div>
+          <div class="detail-name">${esc(c.name)}</div>
+          <div class="detail-meta">${c.age ? c.age+'歳 · ' : ''}${genderLabel}<br>開始: ${fmtDateFull(c.startDate || '')}</div>
+          <div style="margin-top:6px;"><span class="goal-badge goal-${c.goal}">${esc(c.goal)}</span></div>
+          ${nextSessDetailHTML}
+        </div>
+      </div>
+      ${c.notes ? `<div style="font-size:13px;color:var(--sub);margin-bottom:14px;line-height:1.6;">${esc(c.notes)}</div>` : ''}
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="stat-box-val">${sessions.length}</div>
+          <div class="stat-box-label">Sessions</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-val">${latestBody ? latestBody.weight : '-'}</div>
+          <div class="stat-box-label">体重 kg</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-val">${monthlySessions}</div>
+          <div class="stat-box-label">今月</div>
+        </div>
+      </div>
+      <div class="row2">
+        <button class="btn-sm btn-sm-blue" onclick="openSessionForClient('${c.id}')">💪 セッション記録</button>
+        <button class="btn-sm btn-sm-green" onclick="openBodyForClient('${c.id}')">⚖️ 体測定記録</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn-sm btn-sm-blue" style="flex:1;" onclick="openGraphForClient('${c.id}')">📊 グラフを見る</button>
+        <button class="btn-sm" style="background:rgba(255,59,48,.08);color:var(--red);flex:1;" onclick="deleteClient('${c.id}')">🗑️ 削除</button>
+      </div>
+      <button class="report-btn" onclick="generateReport('${c.id}')">📄 進捗レポート生成${isPro ? '' : ' (Pro)'}</button>
+      <button class="report-btn" style="margin-top:6px;background:linear-gradient(135deg,rgba(52,199,89,.15),rgba(0,200,128,.1));border-color:rgba(52,199,89,.3);color:var(--green);" onclick="shareProgress('${c.id}')">📤 進捗をシェア</button>
+    </div>
+
+    ${latestBody ? `
+    <div class="card">
+      <div class="card-label" style="color:var(--amber);">Latest Body Data</div>
+      <div class="glow-line" style="background: linear-gradient(90deg, transparent, rgba(255,149,0,.2) 50%, transparent);"></div>
+      ${bwHTML}
+      ${progressHTML}
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-label">Session History</div>
+      <div class="glow-line"></div>
+      ${sessHTML}
+      ${sessions.length ? `<button class="btn-sm btn-sm-blue" style="width:100%;margin-top:10px;padding:11px;" onclick="openSessionForClient('${c.id}')">＋ セッションを記録</button>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-label" style="color:var(--amber);">Body Measurement History</div>
+      <div class="glow-line" style="background: linear-gradient(90deg, transparent, rgba(255,149,0,.2) 50%, transparent);"></div>
+      ${bodyHTML}
+      ${bodies.length ? `<button class="btn-sm btn-sm-green" style="width:100%;margin-top:10px;padding:11px;" onclick="openBodyForClient('${c.id}')">＋ 体測定を記録</button>` : ''}
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <button class="btn btn-ghost" style="width:100%;padding:13px;font-size:12px;" onclick="openAddClient('${c.id}')">✏️ プロフィールを編集</button>
+    </div>`;
+  // ミニチャートを描画（DOM挿入後）
+  if (bodies.length >= 2) setTimeout(() => drawMiniChart(clientId), 50);
+}
+
+function loadMoreSessions(clientId) {
+  if (!_histShowCounts[clientId]) _histShowCounts[clientId] = { sess: 5, body: 5 };
+  _histShowCounts[clientId].sess += 10;
+  renderClientDetail(clientId);
+}
+
+function loadMoreBody(clientId) {
+  if (!_histShowCounts[clientId]) _histShowCounts[clientId] = { sess: 5, body: 5 };
+  _histShowCounts[clientId].body += 10;
+  renderClientDetail(clientId);
+}
+
+function deleteClient(clientId) {
+  const c = load(K.clients).find(c => c.id === clientId);
+  if (!c) return;
+  confirmDialog(
+    `「${c.name}」を削除`,
+    `関連するセッション・体測定データもすべて削除されます。この操作は元に戻せません。`,
+    () => {
+      save(K.clients,  load(K.clients).filter(x => x.id !== clientId));
+      save(K.sessions, load(K.sessions).filter(s => s.clientId !== clientId));
+      save(K.body,     load(K.body).filter(b => b.clientId !== clientId));
+      toast('🗑️ クライアントを削除しました');
+      navBack();
+      renderClientList();
+    }
+  );
+}
+
+/* ─────────────────────────────────────────
+   SESSION RECORDING
+───────────────────────────────────────── */
+function fillClientSelector(selectId, selectedId) {
+  const sel = document.getElementById(selectId);
+  const clients = load(K.clients);
+  sel.innerHTML = clients.length
+    ? clients.map(c => `<option value="${c.id}"${c.id===selectedId?' selected':''}>${esc(c.name)}</option>`).join('')
+    : '<option value="">-- クライアントなし --</option>';
+}
+
+function initSessionForm(clientId) {
+  sessionExercises = [];
+  editingSessionId = null;
+  fillClientSelector('sess-client', clientId);
+  document.getElementById('sess-date').value     = today();
+  document.getElementById('sess-duration').value = '';
+  document.getElementById('sess-notes').value    = '';
+  document.getElementById('session-edit-banner').style.display = 'none';
+  document.getElementById('sess-save-btn').textContent = 'REC ＋ 記録する';
+  document.getElementById('sess-cancel-btn').style.display = 'none';
+  const hint = document.getElementById('autofill-hint');
+  if (hint) hint.style.display = 'none';
+  addExercise(); // 最初の種目欄を自動追加
+  renderExEntries();
+}
+
+function openSessionForClient(clientId) {
+  initSessionForm(clientId);
+  // 前回セッションを自動入力
+  const lastSession = load(K.sessions)
+    .filter(s => s.clientId === clientId)
+    .sort((a,b) => b.date.localeCompare(a.date))[0];
+  if (lastSession && lastSession.exercises?.length) {
+    sessionExercises = lastSession.exercises.map(ex => ({
+      exId: uid(), name: ex.name,
+      sets: (ex.sets||[]).map(st => ({ setId: uid(), weight: st.weight || '', reps: st.reps || '' }))
+    }));
+    renderExEntries();
+    const hint = document.getElementById('autofill-hint');
+    if (hint) hint.style.display = 'block';
+  }
+  navTo('session');
+}
+
+function editSession(sessionId) {
+  const s = load(K.sessions).find(s => s.id === sessionId);
+  if (!s) return;
+  editingSessionId = sessionId;
+  fillClientSelector('sess-client', s.clientId);
+  document.getElementById('sess-date').value     = s.date;
+  document.getElementById('sess-duration').value = s.duration || '';
+  document.getElementById('sess-notes').value    = s.notes || '';
+  // Restore exercises
+  sessionExercises = (s.exercises || []).map(ex => ({
+    exId: uid(),
+    name: ex.name,
+    sets: (ex.sets || []).map(st => ({ setId: uid(), weight: st.weight || '', reps: st.reps || '' }))
+  }));
+  if (!sessionExercises.length) addExercise();
+  renderExEntries();
+  const banner = document.getElementById('session-edit-banner');
+  banner.textContent = `✏️ 編集中: ${fmtDateFull(s.date)} セッション`;
+  banner.style.display = 'block';
+  document.getElementById('sess-save-btn').textContent = '✓ 更新する';
+  document.getElementById('sess-cancel-btn').style.display = 'block';
+  navTo('session');
+}
+
+function cancelSessionEdit() {
+  editingSessionId = null;
+  const clientId = document.getElementById('sess-client').value;
+  initSessionForm(clientId);
+  const hint = document.getElementById('autofill-hint');
+  if (hint) hint.style.display = 'none';
+}
+
+function onSessClientChange() {
+  if (editingSessionId) return; // 編集中はオートフィルしない
+  const clientId = document.getElementById('sess-client').value;
+  if (!clientId) return;
+  const lastSession = load(K.sessions)
+    .filter(s => s.clientId === clientId)
+    .sort((a,b) => b.date.localeCompare(a.date))[0];
+  const hint = document.getElementById('autofill-hint');
+  if (lastSession && lastSession.exercises?.length) {
+    sessionExercises = lastSession.exercises.map(ex => ({
+      exId: uid(), name: ex.name,
+      sets: (ex.sets||[]).map(st => ({ setId: uid(), weight: st.weight||'', reps: st.reps||'' }))
+    }));
+    renderExEntries();
+    if (hint) hint.style.display = 'block';
+  } else {
+    sessionExercises = [];
+    addExercise();
+    renderExEntries();
+    if (hint) hint.style.display = 'none';
+  }
+}
+
+function addExercise() {
+  sessionExercises.push({ exId: uid(), name: '', sets: [{ setId: uid(), weight: '', reps: '' }] });
+  renderExEntries();
+}
+
+function removeExercise(exId) {
+  sessionExercises = sessionExercises.filter(e => e.exId !== exId);
+  renderExEntries();
+}
+
+function addSet(exId) {
+  const ex = sessionExercises.find(e => e.exId === exId);
+  if (ex) ex.sets.push({ setId: uid(), weight: '', reps: '' });
+  renderExEntries();
+}
+
+function removeSet(exId, setId) {
+  const ex = sessionExercises.find(e => e.exId === exId);
+  if (ex && ex.sets.length > 1) {
+    ex.sets = ex.sets.filter(s => s.setId !== setId);
+    renderExEntries();
+  }
+}
+
+function syncExerciseData() {
+  sessionExercises.forEach(ex => {
+    const nameEl = document.getElementById('ex-name-' + ex.exId);
+    if (nameEl) ex.name = nameEl.value;
+    ex.sets.forEach(st => {
+      const wEl = document.getElementById('w-' + st.setId);
+      const rEl = document.getElementById('r-' + st.setId);
+      if (wEl) st.weight = parseFloat(wEl.value) || 0;
+      if (rEl) st.reps   = parseInt(rEl.value)   || 0;
+    });
+  });
+}
+
+function renderExEntries() {
+  const container = document.getElementById('ex-entries');
+  if (!container) return;
+  container.innerHTML = sessionExercises.map((ex, idx) => `
+    <div class="ex-entry">
+      <div class="ex-entry-header">
+        <input type="text" id="ex-name-${ex.exId}"
+          style="background:transparent;border:none;border-bottom:1.5px solid var(--border);border-radius:0;padding:4px 0;font-size:15px;font-weight:800;color:var(--text);outline:none;width:calc(100% - 80px);"
+          placeholder="種目名を入力" value="${esc(ex.name)}"
+          list="ex-datalist"
+          onfocus="this.style.borderBottomColor='var(--accent)'"
+          onblur="this.style.borderBottomColor='var(--border)'">
+        <button style="background:rgba(255,59,48,.08);border:1px solid rgba(255,59,48,.18);color:var(--red);font-size:11px;padding:5px 10px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit;" onclick="removeExercise('${ex.exId}')">削除</button>
+      </div>
+      <div class="set-header">
+        <span>SET</span><span>重量 kg</span><span>回数</span><span></span>
+      </div>
+      ${ex.sets.map((st, si) => `
+        <div class="set-row">
+          <div class="set-num">${si + 1}</div>
+          <input class="set-input" type="number" id="w-${st.setId}" value="${st.weight||''}" placeholder="0" min="0" step="0.5" inputmode="decimal">
+          <input class="set-input reps" type="number" id="r-${st.setId}" value="${st.reps||''}" placeholder="10" min="1" inputmode="decimal">
+          <button class="set-del" onclick="syncExerciseData();removeSet('${ex.exId}','${st.setId}')">×</button>
+        </div>`).join('')}
+      <button class="add-set-btn" onclick="syncExerciseData();addSet('${ex.exId}')">＋ セットを追加</button>
+    </div>`).join('');
+}
+
+function saveSession() {
+  syncExerciseData();
+  const clientId = document.getElementById('sess-client').value;
+  const date     = document.getElementById('sess-date').value;
+  const duration = parseInt(document.getElementById('sess-duration').value) || null;
+  const notes    = document.getElementById('sess-notes').value.trim();
+
+  if (!clientId) { toast('❌ クライアントを選択してください'); return; }
+  if (!date)     { toast('❌ 日付を入力してください'); return; }
+
+  const exercises = sessionExercises
+    .filter(ex => ex.name.trim())
+    .map(ex => ({ name: ex.name.trim(), sets: ex.sets.filter(s => s.reps > 0) }));
+
+  if (!exercises.length) { toast('❌ 種目を1つ以上入力してください'); return; }
+
+  const arr = load(K.sessions);
+  if (editingSessionId) {
+    const idx = arr.findIndex(s => s.id === editingSessionId);
+    if (idx !== -1) arr[idx] = { ...arr[idx], clientId, date, duration, exercises, notes };
+    toast('✅ セッションを更新しました！');
+  } else {
+    // PR検出（保存前に既存記録と比較）
+    const prs = checkForPRs(exercises, clientId, arr);
+    arr.push({ id: uid(), clientId, date, duration, exercises, notes, createdAt: Date.now() });
+    if (prs.length) {
+      setTimeout(() => toast('🏆 PR更新！ ' + prs.join(' / ')), 400);
+    } else {
+      toast('🔥 セッションを記録しました！');
+    }
+  }
+  save(K.sessions, arr);
+  editingSessionId = null;
+
+  if (selectedClientId === clientId) {
+    navBack();
+    renderClientDetail(clientId);
+  } else {
+    navBack();
+    renderClientList();
+  }
+}
+
+function delSession(sessionId) {
+  confirmDialog('セッションを削除', 'この操作は元に戻せません。', () => {
+    save(K.sessions, load(K.sessions).filter(s => s.id !== sessionId));
+    toast('🗑️ 削除しました');
+    if (selectedClientId) renderClientDetail(selectedClientId);
+  });
+}
+
+function checkForPRs(exercises, clientId, allSessions) {
+  const prevSessions = allSessions.filter(s => s.clientId === clientId);
+  const prs = [];
+  exercises.forEach(ex => {
+    if (!ex.name) return;
+    const newMax = Math.max(...(ex.sets||[]).map(s => s.weight || 0));
+    if (!newMax) return;
+    let histMax = 0;
+    prevSessions.forEach(s => {
+      const prevEx = (s.exercises||[]).find(e => e.name === ex.name);
+      if (!prevEx) return;
+      const m = Math.max(...(prevEx.sets||[]).map(st => st.weight || 0));
+      if (m > histMax) histMax = m;
+    });
+    if (newMax > histMax) prs.push(`${ex.name} ${newMax}kg`);
+  });
+  return prs;
+}
+
+function toggleSessDetail(id) {
+  const item = document.getElementById('hi-' + id);
+  if (!item) return;
+  const isOpen = item.classList.contains('open');
+  item.classList.toggle('open');
+  const btn = item.querySelector('.expand-btn');
+  if (btn) btn.textContent = isOpen ? '詳細 ▾' : '閉じる ▴';
+}
+
+/* ─────────────────────────────────────────
+   BODY RECORDING
+───────────────────────────────────────── */
+function initBodyForm(clientId) {
+  editingBodyId = null;
+  fillClientSelector('body-client', clientId);
+  document.getElementById('body-date').value   = today();
+  document.getElementById('body-weight').value = '';
+  document.getElementById('body-fat').value    = '';
+  ['body-chest','body-waist','body-hip','body-arm','body-thigh'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // 詳細測定セクションを閉じる
+  const extEl = document.getElementById('extra-measurements');
+  const arrow = document.getElementById('extra-meas-arrow');
+  if (extEl) extEl.style.display = 'none';
+  if (arrow) arrow.textContent = '▾';
+  document.getElementById('body-edit-banner').style.display = 'none';
+  document.getElementById('body-save-btn').textContent = 'REC ＋ 記録する';
+  document.getElementById('body-cancel-btn').style.display = 'none';
+}
+
+function toggleExtraMeasurements() {
+  const el    = document.getElementById('extra-measurements');
+  const arrow = document.getElementById('extra-meas-arrow');
+  const open  = el.style.display !== 'none';
+  el.style.display = open ? 'none' : 'block';
+  arrow.textContent = open ? '▾' : '▴';
+}
+
+function openBodyForClient(clientId) {
+  initBodyForm(clientId);
+  // 前回の測定値を自動入力
+  const lastBody = load(K.body)
+    .filter(b => b.clientId === clientId)
+    .sort((a,b) => b.date.localeCompare(a.date))[0];
+  if (lastBody) {
+    document.getElementById('body-weight').value = lastBody.weight;
+    if (lastBody.fatPct != null) document.getElementById('body-fat').value = lastBody.fatPct;
+    const measMap = { chest:'body-chest', waist:'body-waist', hip:'body-hip', arm:'body-arm', thigh:'body-thigh' };
+    let hasExtra = false;
+    Object.entries(measMap).forEach(([key, id]) => {
+      if (lastBody[key] != null) { document.getElementById(id).value = lastBody[key]; hasExtra = true; }
+    });
+    if (hasExtra) {
+      document.getElementById('extra-measurements').style.display = 'block';
+      document.getElementById('extra-meas-arrow').textContent = '▴';
+    }
+    toast('⚡ 前回の測定値を自動入力しました');
+  }
+  navTo('body-record');
+}
+
+function editBodyRecord(bodyId) {
+  const b = load(K.body).find(b => b.id === bodyId);
+  if (!b) return;
+  editingBodyId = bodyId;
+  fillClientSelector('body-client', b.clientId);
+  document.getElementById('body-date').value   = b.date;
+  document.getElementById('body-weight').value = b.weight;
+  document.getElementById('body-fat').value    = b.fatPct != null ? b.fatPct : '';
+  const measMap = { chest:'body-chest', waist:'body-waist', hip:'body-hip', arm:'body-arm', thigh:'body-thigh' };
+  let hasExtra = false;
+  Object.entries(measMap).forEach(([key, id]) => {
+    const el = document.getElementById(id);
+    if (el) { el.value = b[key] != null ? b[key] : ''; if (b[key] != null) hasExtra = true; }
+  });
+  if (hasExtra) {
+    const extEl = document.getElementById('extra-measurements');
+    const arrow = document.getElementById('extra-meas-arrow');
+    if (extEl) extEl.style.display = 'block';
+    if (arrow) arrow.textContent = '▴';
+  }
+  const banner = document.getElementById('body-edit-banner');
+  banner.textContent = `✏️ 編集中: ${b.weight}kg`;
+  banner.style.display = 'block';
+  document.getElementById('body-save-btn').textContent = '✓ 更新する';
+  document.getElementById('body-cancel-btn').style.display = 'block';
+  navTo('body-record');
+}
+
+function cancelBodyEdit() {
+  const clientId = document.getElementById('body-client').value;
+  initBodyForm(clientId);
+}
+
+function saveBodyRecord() {
+  const clientId = document.getElementById('body-client').value;
+  const date     = document.getElementById('body-date').value;
+  const weight   = parseFloat(document.getElementById('body-weight').value);
+  const fatPct   = parseFloat(document.getElementById('body-fat').value);
+
+  if (!clientId) { toast('❌ クライアントを選択してください'); return; }
+  if (!date)     { toast('❌ 日付を入力してください'); return; }
+  if (isNaN(weight) || weight <= 0) { toast('❌ 体重を入力してください'); return; }
+
+  const fat = isNaN(fatPct) ? null : fatPct;
+  const getNum = id => { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; };
+  const extra = {
+    chest: getNum('body-chest'), waist: getNum('body-waist'), hip: getNum('body-hip'),
+    arm:   getNum('body-arm'),   thigh: getNum('body-thigh'),
+  };
+  const arr = load(K.body);
+  if (editingBodyId) {
+    const idx = arr.findIndex(b => b.id === editingBodyId);
+    if (idx !== -1) arr[idx] = { ...arr[idx], clientId, date, weight, fatPct: fat, ...extra };
+    toast('✅ 体測定データを更新しました！');
+  } else {
+    arr.push({ id: uid(), clientId, date, weight, fatPct: fat, ...extra, createdAt: Date.now() });
+    toast('⚖️ 体測定を記録しました！');
+  }
+  save(K.body, arr);
+  editingBodyId = null;
+
+  if (selectedClientId === clientId) {
+    navBack();
+    renderClientDetail(clientId);
+  } else {
+    navBack();
+    renderClientList();
+  }
+}
+
+function delBodyRecord(bodyId) {
+  confirmDialog('体測定データを削除', 'この操作は元に戻せません。', () => {
+    save(K.body, load(K.body).filter(b => b.id !== bodyId));
+    toast('🗑️ 削除しました');
+    if (selectedClientId) renderClientDetail(selectedClientId);
+  });
+}
+
+/* ─────────────────────────────────────────
+   GRAPH
+───────────────────────────────────────── */
+function fillGraphClientSel() {
+  const clients = load(K.clients);
+  const sel = document.getElementById('graph-client');
+  const cur = graphClientId || sel.value;
+  sel.innerHTML = '<option value="">-- クライアントを選んでください --</option>' +
+    clients.map(c => `<option value="${c.id}"${c.id===cur?' selected':''}>${esc(c.name)}</option>`).join('');
+  if (cur && clients.find(c => c.id === cur)) {
+    sel.value = cur;
+    onGraphClientChange();
+  } else {
+    document.getElementById('graph-content').style.display = 'none';
+    document.getElementById('graph-empty').style.display = 'block';
+  }
+}
+
+function onGraphClientChange() {
+  graphClientId = document.getElementById('graph-client').value;
+  const content = document.getElementById('graph-content');
+  const empty   = document.getElementById('graph-empty');
+  if (!graphClientId) {
+    content.style.display = 'none'; empty.style.display = 'block'; return;
+  }
+  content.style.display = 'block'; empty.style.display = 'none';
+  fillExSel();
+  setTimeout(drawBwChart, 80);
+}
+
+function openGraphForClient(clientId) {
+  graphClientId = clientId;
+  nav('graph', document.querySelectorAll('.nav-item')[2]);
+}
+
+function gTab(tab, el) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('g-bw').style.display = tab==='bw' ? 'block' : 'none';
+  document.getElementById('g-ex').style.display = tab==='ex' ? 'block' : 'none';
+  if (tab==='bw') setTimeout(drawBwChart, 60);
+  if (tab==='ex') fillExSel();
+}
+
+function filterByPeriod(records, period) {
+  if (period === 'all') return records;
+  const days   = period === '1m' ? 30 : 90;
+  const cutoff = new Date(Date.now() - days*24*60*60*1000).toISOString().slice(0,10);
+  return records.filter(r => r.date >= cutoff);
+}
+function setPeriodBw(p, el) {
+  graphPeriod.bw = p;
+  document.querySelectorAll('#g-bw .period-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); drawBwChart();
+}
+function setPeriodEx(p, el) {
+  graphPeriod.ex = p;
+  document.querySelectorAll('#g-ex .period-btn:not(.ex-mode-btn)').forEach(b => b.classList.remove('active'));
+  el.classList.add('active'); drawExChart();
+}
+
+function setExMode(mode, el) {
+  if (mode === 'vol' && !isPro) { showUpgrade(); return; }
+  graphExMode = mode;
+  document.querySelectorAll('.ex-mode-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  drawExChart();
+}
+
+function resetChartWrap(wrapId, canvasId) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return null;
+  wrap.innerHTML = `<canvas id="${canvasId}"></canvas>`;
+  return document.getElementById(canvasId);
+}
+
+function drawBwChart() {
+  if (bwChart) { bwChart.destroy(); bwChart = null; }
+  if (!graphClientId) return;
+  const all    = load(K.body).filter(b => b.clientId === graphClientId).sort((a,b) => a.date.localeCompare(b.date));
+  const recs   = filterByPeriod(all, graphPeriod.bw);
+  const canvas = resetChartWrap('bw-chart-wrap', 'bw-chart');
+  if (!canvas) return;
+
+  if (!recs.length) {
+    document.getElementById('bw-chart-wrap').innerHTML =
+      `<div class="chart-empty"><span class="ei">📈</span><p>体測定データが必要です</p></div>`;
+    return;
+  }
+
+  const hasFat = recs.some(r => r.fatPct != null);
+  const datasets = [{
+    label: '体重(kg)',
+    data:  recs.map(r => r.weight),
+    borderColor: '#FF9500',
+    backgroundColor: ctx => {
+      const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+      g.addColorStop(0, 'rgba(255,149,0,.25)'); g.addColorStop(1, 'rgba(255,149,0,.01)');
+      return g;
+    },
+    fill: true, tension: 0.4,
+    pointBackgroundColor: '#FF9500', pointBorderColor: '#080808', pointBorderWidth: 2,
+    pointRadius: 5, pointHoverRadius: 8, borderWidth: 2.5, yAxisID: 'y',
+  }];
+
+  if (hasFat) {
+    datasets.push({
+      label: '体脂肪率(%)',
+      data:  recs.map(r => r.fatPct ?? null),
+      borderColor: '#007AFF', backgroundColor: ctx => {
+        const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+        g.addColorStop(0, 'rgba(0,122,255,.18)'); g.addColorStop(1, 'rgba(0,122,255,.01)');
+        return g;
+      },
+      fill: true, tension: 0.4, borderDash: [5,3], spanGaps: true,
+      pointBackgroundColor: '#007AFF', pointBorderColor: '#080808', pointBorderWidth: 2,
+      pointRadius: 4, pointHoverRadius: 7, borderWidth: 2, yAxisID: 'y2',
+    });
+  }
+
+  bwChart = new Chart(canvas, {
+    type: 'line',
+    data: { labels: recs.map(r => fmtDateShort(r.date)), datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: hasFat, labels: { color: '#efefef', font: { size: 11, weight: '700' }, boxWidth: 24 } },
+        tooltip: { backgroundColor: '#1c1c1c', borderColor: '#333', borderWidth: 1, titleColor: '#efefef', bodyColor: '#efefef', padding: 10 }
+      },
+      scales: {
+        y:  { grid: { color: 'rgba(255,255,255,.05)' }, border: { color: 'transparent' }, ticks: { color: '#505050', font: { size: 11, weight: '700' }, callback: v => v+'kg' } },
+        y2: hasFat ? { position: 'right', grid: { display: false }, border: { color: 'transparent' }, ticks: { color: '#007AFF', font: { size: 11, weight: '700' }, callback: v => v+'%' } } : { display: false },
+        x:  { grid: { display: false }, border: { color: 'transparent' }, ticks: { color: '#505050', font: { size: 11, weight: '700' } } }
+      }
+    }
+  });
+}
+
+function fillExSel() {
+  if (!graphClientId) return;
+  const exercises = [...new Set(
+    load(K.sessions).filter(s => s.clientId === graphClientId)
+      .flatMap(s => (s.exercises||[]).map(e => e.name))
+  )].sort();
+  const sel = document.getElementById('ex-sel');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">-- 種目を選んでください --</option>' +
+    exercises.map(e => `<option${e===cur?' selected':''}>${esc(e)}</option>`).join('');
+  if (cur && exercises.includes(cur)) drawExChart();
+}
+
+function drawExChart() {
+  if (exChart) { exChart.destroy(); exChart = null; }
+  const exercise = document.getElementById('ex-sel').value;
+  const card     = document.getElementById('ex-chart-card');
+  if (!exercise || !graphClientId) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const isVol = graphExMode === 'vol';
+  document.getElementById('ex-chart-label').textContent =
+    `${exercise} — ${isVol ? 'VOLUME TREND' : 'MAX WEIGHT TREND'}`;
+
+  const sessions = load(K.sessions).filter(s => s.clientId === graphClientId);
+  const all = filterByPeriod(sessions, graphPeriod.ex);
+  const byDate = {};
+  all.forEach(s => {
+    const ex = (s.exercises||[]).find(e => e.name === exercise);
+    if (!ex) return;
+    if (isVol) {
+      const vol = (ex.sets||[]).reduce((sum, st) => sum + (st.weight||0) * (st.reps||0), 0);
+      byDate[s.date] = (byDate[s.date] || 0) + vol;
+    } else {
+      const maxW = Math.max(...(ex.sets||[]).map(st => st.weight || 0));
+      if (!byDate[s.date] || maxW > byDate[s.date]) byDate[s.date] = maxW;
+    }
+  });
+  const dates  = Object.keys(byDate).sort((a,b) => a.localeCompare(b));
+  const canvas = resetChartWrap('ex-chart-wrap', 'ex-chart');
+  if (!canvas) return;
+
+  if (!dates.length) {
+    document.getElementById('ex-chart-wrap').innerHTML =
+      `<div class="chart-empty"><span class="ei">📊</span><p>NO DATA</p></div>`;
+    return;
+  }
+
+  const color = isVol ? '#34C759' : '#007AFF';
+  const colorAlpha = isVol ? 'rgba(52,199,89,' : 'rgba(0,122,255,';
+
+  exChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: dates.map(fmtDateShort),
+      datasets: [{
+        label: isVol ? '総ボリューム' : '最大重量',
+        data:  dates.map(d => byDate[d]),
+        borderColor: color,
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 200);
+          g.addColorStop(0, colorAlpha + '.25)'); g.addColorStop(1, colorAlpha + '.01)');
+          return g;
+        },
+        fill: true, tension: 0.4,
+        pointBackgroundColor: color, pointBorderColor: '#080808', pointBorderWidth: 2,
+        pointRadius: 5, pointHoverRadius: 8, borderWidth: 2.5,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1c1c1c', borderColor: '#333', borderWidth: 1, titleColor: '#efefef', bodyColor: '#efefef', padding: 10,
+          callbacks: { label: ctx => isVol ? `  ${ctx.raw.toLocaleString()} kg` : `  ${ctx.raw} kg` }
+        }
+      },
+      scales: {
+        y: { grid: { color: 'rgba(255,255,255,.05)' }, border: { color: 'transparent' }, ticks: { color: '#505050', font: { size: 11, weight: '700' }, callback: v => isVol ? v.toLocaleString()+'kg' : v+'kg' } },
+        x: { grid: { display: false }, border: { color: 'transparent' }, ticks: { color: '#505050', font: { size: 11, weight: '700' } } }
+      }
+    }
+  });
+}
+
+/* ─────────────────────────────────────────
+   SETTINGS
+───────────────────────────────────────── */
+function loadTrainerProfile() {
+  const s = loadObj(K.settings);
+  document.getElementById('trainer-name').value = s.name || '';
+  document.getElementById('trainer-gym').value  = s.gym  || '';
+}
+
+function saveTrainerProfile() {
+  const name = document.getElementById('trainer-name').value.trim();
+  const gym  = document.getElementById('trainer-gym').value.trim();
+  saveObj(K.settings, { name, gym });
+  toast('✅ プロフィールを保存しました');
+}
+
+/* ─────────────────────────────────────────
+   CSV EXPORT
+───────────────────────────────────────── */
+function exportCSV() {
+  const clients  = load(K.clients);
+  const sessions = load(K.sessions);
+  const bodies   = load(K.body);
+  const rows = [['クライアント名','日付','種別','内容','体重(kg)','体脂肪率(%)','セット数','メモ']];
+
+  clients.forEach(c => {
+    sessions.filter(s => s.clientId === c.id).forEach(s => {
+      const exNames  = (s.exercises||[]).map(e=>e.name).join(' / ');
+      const setCount = (s.exercises||[]).reduce((n,e)=>n+(e.sets||[]).length,0);
+      rows.push([c.name, s.date, 'セッション', exNames, '', '', setCount, s.notes||'']);
+    });
+    bodies.filter(b => b.clientId === c.id).forEach(b => {
+      rows.push([c.name, b.date, '体測定', '', b.weight||'', b.fatPct||'', '', '']);
+    });
+  });
+
+  const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const bom  = '\uFEFF';
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `fitcoach-export-${today()}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  toast('📊 CSVエクスポートしました');
+}
+
+/* ─────────────────────────────────────────
+   DEMO DATA
+───────────────────────────────────────── */
+function loadDemoData() {
+  const demoClients = [
+    { id:'demo-1', createdAt: Date.now()-86400000*60, name:'田中 健太', age:28, gender:'male',   goal:'減量',   startDate:'2026-01-15', notes:'腰に持病あり、スクワットは軽め', isDemo:true },
+    { id:'demo-2', createdAt: Date.now()-86400000*30, name:'佐藤 美咲', age:32, gender:'female', goal:'増量',   startDate:'2026-02-01', notes:'筋トレ初心者、丁寧にフォーム指導', isDemo:true },
+    { id:'demo-3', createdAt: Date.now()-86400000*14, name:'鈴木 大輔', age:45, gender:'male',   goal:'健康維持', startDate:'2026-03-01', notes:'週2回セッション希望', isDemo:true },
+  ];
+  const today_ = today();
+  const d = (n) => { const dt = new Date(Date.now()-86400000*n); return dt.toISOString().slice(0,10); };
+  const demoSessions = [
+    { id:'ds-1',  clientId:'demo-1', date:d(2),  duration:60, exercises:[{exId:'e1',name:'ベンチプレス',sets:[{setId:'s1',weight:60,reps:10},{setId:'s2',weight:60,reps:10},{setId:'s3',weight:60,reps:8}]},{exId:'e2',name:'スクワット',sets:[{setId:'s4',weight:40,reps:12},{setId:'s5',weight:40,reps:12}]}], notes:'調子良さそう', isDemo:true },
+    { id:'ds-2',  clientId:'demo-1', date:d(9),  duration:60, exercises:[{exId:'e3',name:'デッドリフト',sets:[{setId:'s6',weight:70,reps:8},{setId:'s7',weight:70,reps:8}]},{exId:'e4',name:'ラットプルダウン',sets:[{setId:'s8',weight:45,reps:12},{setId:'s9',weight:45,reps:12}]}], notes:'', isDemo:true },
+    { id:'ds-3',  clientId:'demo-1', date:d(16), duration:60, exercises:[{exId:'e5',name:'ベンチプレス',sets:[{setId:'s10',weight:57.5,reps:10},{setId:'s11',weight:57.5,reps:10}]}], notes:'', isDemo:true },
+    { id:'ds-4',  clientId:'demo-2', date:d(3),  duration:50, exercises:[{exId:'e6',name:'ダンベルカール',sets:[{setId:'s12',weight:8,reps:12},{setId:'s13',weight:8,reps:12}]},{exId:'e7',name:'レッグプレス',sets:[{setId:'s14',weight:50,reps:15},{setId:'s15',weight:50,reps:15}]}], notes:'フォーム良くなってきた', isDemo:true },
+    { id:'ds-5',  clientId:'demo-2', date:d(10), duration:50, exercises:[{exId:'e8',name:'ショルダープレス',sets:[{setId:'s16',weight:12,reps:12},{setId:'s17',weight:12,reps:12}]}], notes:'', isDemo:true },
+    { id:'ds-6',  clientId:'demo-3', date:d(5),  duration:45, exercises:[{exId:'e9',name:'ウォーキングランジ',sets:[{setId:'s18',weight:0,reps:20},{setId:'s19',weight:0,reps:20}]},{exId:'e10',name:'チェストプレス(マシン)',sets:[{setId:'s20',weight:40,reps:12},{setId:'s21',weight:40,reps:12}]}], notes:'楽しんでいる様子', isDemo:true },
+  ];
+  const demoBodies = [
+    { id:'db-1', clientId:'demo-1', date:d(60), weight:82.0, fatPct:22.0, isDemo:true },
+    { id:'db-2', clientId:'demo-1', date:d(45), weight:80.5, fatPct:21.2, isDemo:true },
+    { id:'db-3', clientId:'demo-1', date:d(30), weight:79.0, fatPct:20.5, isDemo:true },
+    { id:'db-4', clientId:'demo-1', date:d(15), weight:78.0, fatPct:19.8, isDemo:true },
+    { id:'db-5', clientId:'demo-1', date:d(2),  weight:77.2, fatPct:19.2, isDemo:true },
+    { id:'db-6', clientId:'demo-2', date:d(30), weight:52.0, fatPct:24.0, isDemo:true },
+    { id:'db-7', clientId:'demo-2', date:d(3),  weight:53.5, fatPct:23.1, isDemo:true },
+    { id:'db-8', clientId:'demo-3', date:d(14), weight:75.0, fatPct:21.0, isDemo:true },
+    { id:'db-9', clientId:'demo-3', date:d(5),  weight:74.5, fatPct:20.7, isDemo:true },
+  ];
+
+  const mergeArr = (local, demo) => {
+    const map = {}; local.forEach(r=>map[r.id]=r); demo.forEach(r=>map[r.id]=r); return Object.values(map);
+  };
+  save(K.clients,  mergeArr(load(K.clients),  demoClients));
+  save(K.sessions, mergeArr(load(K.sessions), demoSessions));
+  save(K.body,     mergeArr(load(K.body),     demoBodies));
+  renderClientList();
+  nav('clients', document.querySelector('.nav-item'));
+  toast('🎮 デモデータを読み込みました！');
+}
+
+function clearDemoData() {
+  save(K.clients,  load(K.clients).filter(r=>!r.isDemo));
+  save(K.sessions, load(K.sessions).filter(r=>!r.isDemo));
+  save(K.body,     load(K.body).filter(r=>!r.isDemo));
+  renderClientList();
+  toast('🗑️ デモデータを削除しました');
+}
+
+function exportData() {
+  const data = {
+    exportedAt: new Date().toISOString(),
+    clients:    load(K.clients),
+    sessions:   load(K.sessions),
+    body:       load(K.body),
+    templates:  loadObj(K.templates),
+    settings:   loadObj(K.settings),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `fitcoach-pro-backup-${today()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('📤 エクスポートしました');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+
+      // 形式チェック
+      if (!data.clients && !data.sessions && !data.body) {
+        toast('❌ 有効なPT Managerのバックアップファイルではありません'); return;
+      }
+
+      const mergeArr = (local, imported) => {
+        const map = {};
+        (local   ||[]).forEach(r => { map[r.id] = r; });
+        (imported||[]).forEach(r => { map[r.id] = r; }); // インポートで上書き
+        return Object.values(map);
+      };
+      const mergeObj = (local, imported) => ({ ...(local||{}), ...(imported||{}) });
+
+      let counts = [];
+      if (data.clients)   { save(K.clients,   mergeArr(load(K.clients),  data.clients));   counts.push(`クライアント${data.clients.length}名`); }
+      if (data.sessions)  { save(K.sessions,  mergeArr(load(K.sessions), data.sessions));  counts.push(`セッション${data.sessions.length}件`); }
+      if (data.body)      { save(K.body,      mergeArr(load(K.body),     data.body));      counts.push(`体測定${data.body.length}件`); }
+      if (data.templates) { saveObj(K.templates, mergeObj(loadObj(K.templates), data.templates)); }
+      if (data.settings)  { saveObj(K.settings,  mergeObj(loadObj(K.settings),  data.settings));  }
+
+      renderClientList();
+      toast(`✅ インポート完了 (${counts.join(' / ')})`);
+      event.target.value = ''; // リセット
+    } catch (err) {
+      toast('❌ JSONの解析に失敗しました');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showUpgrade() {
+  if (isPro) { toast('⭐ すでにProプランです！'); return; }
+  const note = document.getElementById('upgrade-login-note');
+  if (note) note.style.display = (!fbAuth || !fbAuth.currentUser) ? 'block' : 'none';
+  document.getElementById('upgrade-modal').classList.add('open');
+}
+function closeUpgradeModal(e) {
+  if (e && e.target !== document.getElementById('upgrade-modal')) return;
+  document.getElementById('upgrade-modal').classList.remove('open');
+}
+
+function startUpgrade() {
+  if (!fbAuth || !fbAuth.currentUser) {
+    toast('💡 まずGoogleでログインしてください');
+    closeUpgradeModal();
+    signInWithGoogle();
+    return;
+  }
+  // GA4: begin_checkout イベント
+  gtag('event', 'begin_checkout', { value: 4980, currency: 'JPY', items: [{ item_name: 'FitCoach Pro', price: 4980 }] });
+  const uid = fbAuth.currentUser.uid;
+  const url = PRO_PAYMENT_URL + '?client_reference_id=' + uid;
+  window.open(url, '_blank');
+  closeUpgradeModal();
+  toast('💳 Stripeの決済ページを開きました');
+  // 決済完了後にFirestoreが更新されたら自動検知 (15秒×3回ポーリング)
+  let n = 0;
+  const poll = setInterval(async () => {
+    if (fbAuth.currentUser) await checkProStatus(fbAuth.currentUser.uid);
+    if (isPro || ++n >= 3) clearInterval(poll);
+  }, 15000);
+}
+
+async function refreshProStatus() {
+  if (!fbAuth || !fbAuth.currentUser) {
+    toast('💡 まずGoogleでログインしてください'); return;
+  }
+  closeUpgradeModal();
+  toast('🔄 Proステータスを確認中...');
+  await checkProStatus(fbAuth.currentUser.uid);
+  if (!isPro) toast('❌ まだ決済が確認できません。少し待ってから再試行してください');
+}
+
+async function checkProStatus(uid) {
+  if (!fbDb || !uid) return;
+  try {
+    const doc = await fbDb.collection('pt_users').doc(uid).get();
+    if (doc.exists && doc.data().isPro) {
+      isPro = true;
+      updateProUI();
+      toast('⭐ Proプランが有効です！');
+    }
+  } catch(e) { console.error('checkProStatus:', e); }
+}
+
+function updateProUI() {
+  const badge   = document.getElementById('plan-badge');
+  const desc    = document.getElementById('plan-desc');
+  const btn     = document.getElementById('settings-upgrade-btn');
+  const banner  = document.getElementById('limit-banner');
+  const freeList = document.getElementById('free-feature-list');
+  const proList  = document.getElementById('pro-feature-list');
+  if (badge)    { badge.className = 'plan-badge plan-pro'; badge.textContent = '⭐ PRO'; }
+  if (desc)     { desc.textContent = 'クライアント無制限・全機能利用可能'; }
+  if (btn)      { btn.style.display = 'none'; }
+  if (banner)   { banner.style.display = 'none'; }
+  if (freeList) { freeList.style.display = 'none'; }
+  if (proList)  { proList.style.display = 'block'; }
+  // 詳細測定のProバッジを非表示
+  const proMeasBadge = document.getElementById('extra-meas-pro-badge');
+  if (proMeasBadge) proMeasBadge.style.display = 'none';
+}
+
+/* ─────────────────────────────────────────
+   PROGRESS REPORT
+───────────────────────────────────────── */
+function generateReport(clientId) {
+  if (!isPro) { showUpgrade(); return; }
+  const c        = load(K.clients).find(c => c.id === clientId);
+  if (!c) return;
+  const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
+  const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
+  const settings = loadObj(K.settings);
+  const trainerName = settings.name || 'パーソナルトレーナー';
+  const gymName     = settings.gym  || '';
+  const reportDate  = fmtDateFull(today());
+
+  const firstBody  = bodies[0];
+  const latestBody = bodies[bodies.length - 1];
+  const weightChange = (firstBody && latestBody && firstBody !== latestBody)
+    ? (latestBody.weight - firstBody.weight).toFixed(1) : null;
+  const fatChange    = (firstBody?.fatPct != null && latestBody?.fatPct != null && firstBody !== latestBody)
+    ? (latestBody.fatPct - firstBody.fatPct).toFixed(1) : null;
+
+  const thisMonth    = today().slice(0, 7);
+  const monthSessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
+
+  // PR集計
+  const prMap = {};
+  sessions.forEach(s => (s.exercises||[]).forEach(ex => {
+    const maxW = Math.max(...(ex.sets||[]).filter(st => st.weight > 0).map(st => st.weight), 0);
+    if (!maxW) return;
+    if (!prMap[ex.name] || maxW > prMap[ex.name]) prMap[ex.name] = maxW;
+  }));
+  const topPRs = Object.entries(prMap).sort((a,b) => b[1]-a[1]).slice(0, 5);
+
+  // 体型測定テーブル行
+  const bodyRows = bodies.slice(-8).map(b => {
+    const extras = [b.chest, b.waist, b.hip, b.arm, b.thigh].map(v => v != null ? v : '—');
+    return `<tr>
+      <td>${fmtDateFull(b.date)}</td>
+      <td>${b.weight} kg</td>
+      <td>${b.fatPct != null ? b.fatPct + '%' : '—'}</td>
+      <td>${extras[0]} cm</td><td>${extras[1]} cm</td><td>${extras[2]} cm</td>
+      <td>${extras[3]} cm</td><td>${extras[4]} cm</td>
+    </tr>`;
+  }).join('');
+
+  // 最近のセッション (5件)
+  const recentSessions = [...sessions].reverse().slice(0, 5).map(s => {
+    const exList = (s.exercises||[]).map(ex => {
+      const maxW = Math.max(...(ex.sets||[]).map(st => st.weight||0), 0);
+      return `${ex.name}(${ex.sets.length}set${maxW ? ' / max '+maxW+'kg' : ''})`;
+    }).join('、');
+    return `<tr><td>${fmtDateFull(s.date)}</td><td>${s.duration ? s.duration+'分' : '—'}</td><td style="font-size:11px;">${exList || '—'}</td></tr>`;
+  }).join('');
+
+  const sign = v => v > 0 ? '+' + v : v;
+  const genderLabel = c.gender === 'male' ? '男性' : c.gender === 'female' ? '女性' : 'その他';
+
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<title>進捗レポート — ${c.name}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Hiragino Sans', sans-serif; color: #111; padding: 32px; max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 900; margin-bottom: 4px; }
+  h2 { font-size: 13px; font-weight: 800; color: #007AFF; text-transform: uppercase; letter-spacing: .1em; margin: 24px 0 10px; padding-bottom: 4px; border-bottom: 2px solid #007AFF; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #ddd; }
+  .trainer { text-align: right; font-size: 12px; color: #666; }
+  .trainer strong { display: block; font-size: 14px; color: #111; font-weight: 800; }
+  .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+  .stat { background: #f5f5f7; border-radius: 10px; padding: 12px; text-align: center; }
+  .stat-val { font-size: 26px; font-weight: 900; color: #007AFF; }
+  .stat-lbl { font-size: 10px; font-weight: 700; color: #888; text-transform: uppercase; margin-top: 3px; }
+  .stat.green .stat-val { color: #34C759; }
+  .stat.red   .stat-val { color: #FF3B30; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #f0f0f0; padding: 8px 10px; text-align: left; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+  tr:last-child td { border-bottom: none; }
+  .pr-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pr-chip { background: #fff8e0; border: 1px solid #FFD700; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 800; }
+  .footer { margin-top: 32px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #999; text-align: center; }
+  @media print { body { padding: 0; } }
+</style></head><body>
+<div class="header">
+  <div>
+    <div style="font-size:11px;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;">Progress Report</div>
+    <h1>${esc(c.name)}</h1>
+    <div style="font-size:13px;color:#555;margin-top:4px;">${c.age ? c.age+'歳 · ' : ''}${genderLabel} · 目標: ${esc(c.goal)}</div>
+    ${c.startDate ? `<div style="font-size:12px;color:#888;margin-top:2px;">開始: ${fmtDateFull(c.startDate)}</div>` : ''}
+  </div>
+  <div class="trainer">
+    <strong>${esc(trainerName)}</strong>
+    ${gymName ? esc(gymName) + '<br>' : ''}
+    発行日: ${reportDate}
+  </div>
+</div>
+
+<h2>サマリー</h2>
+<div class="stats">
+  <div class="stat">
+    <div class="stat-val">${sessions.length}</div>
+    <div class="stat-lbl">Total Sessions</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">${monthSessions}</div>
+    <div class="stat-lbl">今月</div>
+  </div>
+  ${latestBody ? `<div class="stat">
+    <div class="stat-val">${latestBody.weight}</div>
+    <div class="stat-lbl">現在の体重 kg</div>
+  </div>` : ''}
+  ${weightChange !== null ? `<div class="stat ${parseFloat(weightChange) < 0 ? 'green' : 'red'}">
+    <div class="stat-val">${sign(weightChange)}</div>
+    <div class="stat-lbl">体重変化 kg</div>
+  </div>` : ''}
+  ${fatChange !== null ? `<div class="stat ${parseFloat(fatChange) < 0 ? 'green' : 'red'}">
+    <div class="stat-val">${sign(fatChange)}%</div>
+    <div class="stat-lbl">体脂肪変化</div>
+  </div>` : ''}
+</div>
+
+${topPRs.length ? `
+<h2>パーソナルレコード (TOP 5)</h2>
+<div class="pr-row">
+  ${topPRs.map(([name, w]) => `<div class="pr-chip">🏆 ${esc(name)}: ${w} kg</div>`).join('')}
+</div>` : ''}
+
+${bodies.length ? `
+<h2>体型測定履歴</h2>
+<table>
+  <tr><th>日付</th><th>体重</th><th>体脂肪率</th><th>胸囲</th><th>腹囲</th><th>臀囲</th><th>腕囲</th><th>太腿囲</th></tr>
+  ${bodyRows}
+</table>` : ''}
+
+${sessions.length ? `
+<h2>直近のセッション</h2>
+<table>
+  <tr><th>日付</th><th>時間</th><th>内容</th></tr>
+  ${recentSessions}
+</table>` : ''}
+
+${c.notes ? `<h2>メモ</h2><p style="font-size:13px;color:#555;line-height:1.7;">${esc(c.notes)}</p>` : ''}
+
+<div class="footer">PT Manager で生成 · ${reportDate}</div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=800,height=900');
+  if (!win) { toast('❌ ポップアップがブロックされました。許可してください'); return; }
+  win.document.write(html);
+  win.document.close();
+  // PDFで保存ボタンを挿入
+  win.addEventListener('load', () => {
+    const saveBtn = win.document.createElement('button');
+    saveBtn.textContent = '🖨️ PDFで保存';
+    saveBtn.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:14px 24px;background:linear-gradient(135deg,#007AFF,#00C8FF);color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(0,122,255,.4);font-family:-apple-system,sans-serif;letter-spacing:.04em;z-index:9999;';
+    saveBtn.onclick = () => { saveBtn.style.display = 'none'; win.print(); setTimeout(() => saveBtn.style.display = 'block', 1000); };
+    win.document.body.appendChild(saveBtn);
+  });
+}
+
+/* ─────────────────────────────────────────
+   SHARE PROGRESS (タスク4)
+───────────────────────────────────────── */
+function shareProgress(clientId) {
+  const c        = load(K.clients).find(c => c.id === clientId);
+  if (!c) return;
+  const sessions = load(K.sessions).filter(s => s.clientId === clientId);
+  const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
+  const settings = loadObj(K.settings);
+  const trainerName = settings.name || 'パーソナルトレーナー';
+
+  // 開始からの日数
+  const startDate = c.startDate ? new Date(c.startDate + 'T12:00:00') : null;
+  const elapsedDays = startDate ? Math.floor((Date.now() - startDate.getTime()) / 86400000) : null;
+
+  // 体重変化
+  const firstBody  = bodies[0];
+  const latestBody = bodies[bodies.length - 1];
+  let weightLine = '';
+  if (firstBody && latestBody && firstBody !== latestBody) {
+    const diff = (latestBody.weight - firstBody.weight).toFixed(1);
+    const sign = diff > 0 ? '+' : '';
+    weightLine = `体重: ${firstBody.weight}kg → ${latestBody.weight}kg（${sign}${diff}kg）`;
+  } else if (latestBody) {
+    weightLine = `体重: ${latestBody.weight}kg`;
+  }
+
+  // 今月セッション数
+  const thisMonth = today().slice(0, 7);
+  const monthSessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
+
+  const text = `【${c.name}さんの進捗報告 💪】
+${elapsedDays !== null ? `開始から${elapsedDays}日経過` : ''}
+${weightLine}
+今月セッション数: ${monthSessions}回
+担当: ${trainerName}
+#FitCoachPro #パーソナルトレーニング`;
+
+  if (navigator.share) {
+    navigator.share({ text: text.trim() })
+      .then(() => toast('📤 シェアしました！'))
+      .catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text.trim())
+      .then(() => toast('📋 クリップボードにコピーしました！'))
+      .catch(() => {
+        // フォールバック: テキストエリアでコピー
+        const ta = document.createElement('textarea');
+        ta.value = text.trim();
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select(); document.execCommand('copy');
+        document.body.removeChild(ta);
+        toast('📋 クリップボードにコピーしました！');
+      });
+  }
+}
+
+/* ─────────────────────────────────────────
+   DATALIST for exercises
+───────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  const dl = document.createElement('datalist');
+  dl.id = 'ex-datalist';
+  ['ベンチプレス','インクラインプレス','デクラインプレス','ダンベルフライ',
+   'スクワット','フロントスクワット','レッグプレス','レッグカール','レッグエクステンション',
+   'デッドリフト','ルーマニアンデッドリフト','ヒップヒンジ',
+   'ショルダープレス','サイドレイズ','フロントレイズ','リアデルトフライ',
+   'ラットプルダウン','チンアップ','ベントオーバーロウ','シーテッドロウ','ワンハンドロウ',
+   'ダンベルカール','バーベルカール','ハンマーカール',
+   'トライセプスエクステンション','ディップス','ケーブルプッシュダウン',
+   'クランチ','レッグレイズ','プランク','カーフレイズ'].forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e;
+    dl.appendChild(opt);
+  });
+  document.body.appendChild(dl);
+});
+
+/* ─────────────────────────────────────────
+   CONFIRM MODAL
+───────────────────────────────────────── */
+let _confirmCb = null;
+
+function confirmDialog(title, desc, onConfirm) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-desc').textContent  = desc;
+  _confirmCb = onConfirm;
+  document.getElementById('confirm-modal').classList.add('open');
+}
+function closeConfirmModal(e) {
+  if (e && e.target !== document.getElementById('confirm-modal')) return;
+  document.getElementById('confirm-modal').classList.remove('open');
+  _confirmCb = null;
+}
+function executeConfirm() {
+  document.getElementById('confirm-modal').classList.remove('open');
+  if (_confirmCb) { _confirmCb(); _confirmCb = null; }
+}
+
+/* ─────────────────────────────────────────
+   TEMPLATES
+───────────────────────────────────────── */
+const FREE_TEMPLATE_LIMIT = 3;
+
+function saveAsTemplate() {
+  syncExerciseData();
+  const exercises = sessionExercises.filter(ex => ex.name.trim());
+  if (!exercises.length) { toast('❌ 種目を入力してからテンプレート保存してください'); return; }
+  if (!isPro && Object.keys(loadObj(K.templates)).length >= FREE_TEMPLATE_LIMIT) {
+    showUpgrade(); return;
+  }
+
+  const name = exercises.map(e => e.name).join(' / ');
+  const templates = loadObj(K.templates);
+  const id = uid();
+  templates[id] = {
+    id, name,
+    exercises: exercises.map(ex => ({
+      name: ex.name,
+      sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps }))
+    })),
+    createdAt: Date.now()
+  };
+  saveObj(K.templates, templates);
+  toast('📋 テンプレートを保存しました');
+}
+
+function showTemplateModal() {
+  const templates = Object.values(loadObj(K.templates));
+  const list = document.getElementById('template-list');
+  const count = templates.length;
+  const limitInfo = !isPro
+    ? `<div style="font-size:11px;color:${count >= FREE_TEMPLATE_LIMIT ? 'var(--amber)' : 'var(--sub)'};text-align:center;margin-bottom:10px;font-weight:700;">
+        ${count >= FREE_TEMPLATE_LIMIT
+          ? '⭐ 上限(3個)に達しました — <span style="color:var(--accent);cursor:pointer;" onclick="closeTemplateModal();showUpgrade()">Proで無制限</span>'
+          : `${count} / ${FREE_TEMPLATE_LIMIT} 個使用中`}
+       </div>` : '';
+  if (!templates.length) {
+    list.innerHTML = limitInfo + emptyHTML('📋', 'テンプレートがありません');
+  } else {
+    templates.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    list.innerHTML = limitInfo + templates.map(t => {
+      const exNames = (t.exercises||[]).map(e => e.name).join('、');
+      const setCount = (t.exercises||[]).reduce((sum,e) => sum + (e.sets||[]).length, 0);
+      return `
+        <div class="tmpl-chip" onclick="loadTemplate('${t.id}')">
+          <div>
+            <div class="tmpl-chip-name">${esc(t.name)}</div>
+            <div class="tmpl-chip-meta">${esc(exNames)} · ${setCount}セット</div>
+          </div>
+          <button class="tmpl-chip-del" onclick="event.stopPropagation();deleteTemplate('${t.id}')">×</button>
+        </div>`;
+    }).join('');
+  }
+  document.getElementById('template-modal').classList.add('open');
+}
+
+function closeTemplateModal(e) {
+  if (e && e.target !== document.getElementById('template-modal')) return;
+  document.getElementById('template-modal').classList.remove('open');
+}
+
+function loadTemplate(templateId) {
+  const t = loadObj(K.templates)[templateId];
+  if (!t) return;
+  sessionExercises = (t.exercises||[]).map(ex => ({
+    exId: uid(), name: ex.name,
+    sets: (ex.sets||[]).map(s => ({ setId: uid(), weight: s.weight || '', reps: s.reps || '' }))
+  }));
+  if (!sessionExercises.length) addExercise();
+  renderExEntries();
+  closeTemplateModal();
+  toast(`⚡ 「${t.name}」を読み込みました`);
+}
+
+function deleteTemplate(templateId) {
+  const templates = loadObj(K.templates);
+  delete templates[templateId];
+  saveObj(K.templates, templates);
+  showTemplateModal();
+}
+
+/* ─────────────────────────────────────────
+   MINI CHART
+───────────────────────────────────────── */
+let _miniChart = null;
+let _miniChartClientId = null;
+
+function drawMiniChart(clientId) {
+  if (_miniChart && _miniChartClientId !== clientId) { _miniChart.destroy(); _miniChart = null; }
+  else if (_miniChart) { _miniChart.destroy(); _miniChart = null; }
+  _miniChartClientId = clientId;
+  const canvas = document.getElementById('mini-bw-chart');
+  if (!canvas) return;
+  const recs = load(K.body)
+    .filter(b => b.clientId === clientId)
+    .sort((a,b) => a.date.localeCompare(b.date))
+    .slice(-12); // 直近12件
+  if (recs.length < 2) return;
+
+  _miniChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: recs.map(r => fmtDateShort(r.date)),
+      datasets: [{
+        data: recs.map(r => r.weight),
+        borderColor: '#FF9500',
+        backgroundColor: ctx => {
+          const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 90);
+          g.addColorStop(0, 'rgba(255,149,0,.2)'); g.addColorStop(1, 'rgba(255,149,0,.01)');
+          return g;
+        },
+        fill: true, tension: 0.4,
+        pointBackgroundColor: '#FF9500', pointBorderColor: '#080808', pointBorderWidth: 2,
+        pointRadius: 3, pointHoverRadius: 6, borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#1c1c1c', borderColor: '#333', borderWidth: 1,
+        titleColor: '#efefef', bodyColor: '#efefef', padding: 8,
+        callbacks: { label: ctx => `${ctx.raw}kg` }
+      }},
+      scales: {
+        y: { grid: { color: 'rgba(255,255,255,.04)' }, border: { color: 'transparent' }, ticks: { color: '#404040', font: { size: 10 }, callback: v => v+'kg' } },
+        x: { grid: { display: false }, border: { color: 'transparent' }, ticks: { color: '#404040', font: { size: 10 } } }
+      }
+    }
+  });
+}
+
+/* ─────────────────────────────────────────
+   FIREBASE CONFIG
+───────────────────────────────────────── */
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyDCWtx1V9XdPIjfNH24ChEz-B0VaD0iBn4",
+  authDomain:        "pt-manager-57190.firebaseapp.com",
+  projectId:         "pt-manager-57190",
+  storageBucket:     "pt-manager-57190.firebasestorage.app",
+  messagingSenderId: "504138724513",
+  appId:             "1:504138724513:web:f222f564cca5a67bd6ace0"
+};
+
+let fbAuth = null, fbDb = null, syncTimer = null;
+
+function initFirebase() {
+  if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return;
+  firebase.initializeApp(FIREBASE_CONFIG);
+  fbAuth = firebase.auth();
+  fbDb   = firebase.firestore();
+  fbDb.enablePersistence({ synchronizeTabs: true }).catch(() => {});
+  // ランディング表示（認証確定前）
+  showLanding();
+
+  fbAuth.onAuthStateChanged(async user => {
+    if (user) {
+      hideLanding();
+      showUserUI(user);
+      await pullFromFirestore(user.uid);
+      await checkProStatus(user.uid);
+    } else {
+      showAuthBtn();
+      showLanding();
+    }
+  });
+}
+
+function scheduleSync() {
+  if (!fbDb || !fbAuth || !fbAuth.currentUser) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushToFirestore, 1800);
+}
+
+function setSyncState(state) {
+  const el = document.getElementById('sync-icon');
+  el.className = 'sync-icon ' + state;
+  el.textContent = state === 'ok' ? '✓' : state === 'err' ? '!' : '⟳';
+}
+
+async function pushToFirestore() {
+  if (!fbDb || !fbAuth || !fbAuth.currentUser) return;
+  setSyncState('syncing');
+  try {
+    await fbDb.collection('pt_users').doc(fbAuth.currentUser.uid).set({
+      clients:   load(K.clients),
+      sessions:  load(K.sessions),
+      body:      load(K.body),
+      templates: loadObj(K.templates),
+      settings:  loadObj(K.settings),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    setSyncState('ok');
+    setTimeout(() => setSyncState(''), 3000);
+  } catch (e) { setSyncState('err'); console.error(e); }
+}
+
+async function pullFromFirestore(uid) {
+  if (!fbDb) return;
+  try {
+    const doc = await fbDb.collection('pt_users').doc(uid).get();
+    if (!doc.exists) { pushToFirestore(); return; }
+    const data = doc.data();
+    // 配列データ: ローカル優先マージ (id基準)
+    const mergeArr = (local, remote) => {
+      const map = {};
+      (remote||[]).forEach(r => { map[r.id] = r; });
+      (local ||[]).forEach(r => { map[r.id] = r; });
+      return Object.values(map);
+    };
+    // オブジェクトデータ: ローカル優先マージ
+    const mergeObj = (local, remote) => ({ ...(remote||{}), ...(local||{}) });
+
+    localStorage.setItem(K.clients,   JSON.stringify(mergeArr(load(K.clients),   data.clients   || [])));
+    localStorage.setItem(K.sessions,  JSON.stringify(mergeArr(load(K.sessions),  data.sessions  || [])));
+    localStorage.setItem(K.body,      JSON.stringify(mergeArr(load(K.body),      data.body      || [])));
+    localStorage.setItem(K.templates, JSON.stringify(mergeObj(loadObj(K.templates), data.templates || {})));
+    localStorage.setItem(K.settings,  JSON.stringify(mergeObj(loadObj(K.settings),  data.settings  || {})));
+
+    // Pro判定
+    if (data.isPro) {
+      const wasNotPro = !isPro;
+      isPro = true;
+      updateProUI();
+      if (wasNotPro) {
+        gtag('event', 'purchase', { value: 4980, currency: 'JPY', transaction_id: fbAuth.currentUser.uid + '_' + Date.now(), items: [{ item_name: 'FitCoach Pro', price: 4980 }] });
+      }
+    }
+
+    renderClientList();
+    toast('☁️ データを同期しました');
+    setSyncState('ok');
+    setTimeout(() => setSyncState(''), 3000);
+  } catch (e) { setSyncState('err'); console.error(e); }
+}
+
+function showAuthBtn() {
+  document.getElementById('auth-btn').style.display    = 'block';
+  document.getElementById('user-avatar').style.display = 'none';
+  document.getElementById('sync-icon').style.display   = 'none';
+}
+function showUserUI(user) {
+  document.getElementById('auth-btn').style.display    = 'none';
+  document.getElementById('sync-icon').style.display   = 'inline';
+  const av = document.getElementById('user-avatar');
+  av.style.display = 'flex';
+  av.innerHTML = user.photoURL
+    ? `<img src="${esc(user.photoURL)}" alt="">`
+    : esc((user.displayName || user.email || '?')[0].toUpperCase());
+}
+function signInWithGoogle() {
+  if (!fbAuth) return;
+  fbAuth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+    .then(() => {
+      gtag('event', 'login', { method: 'google' });
+    })
+    .catch(err => toast('❌ ログイン失敗: ' + err.code));
+}
+function signOut() {
+  if (!fbAuth) return;
+  fbAuth.signOut().then(() => { closeUserMenu(); toast('👋 ログアウトしました'); });
+}
+function openUserMenu() {
+  if (!fbAuth || !fbAuth.currentUser) return;
+  const u = fbAuth.currentUser;
+  document.getElementById('modal-user-name').textContent  = u.displayName || 'ユーザー';
+  document.getElementById('modal-user-email').textContent = u.email || '';
+  document.getElementById('user-modal').classList.add('open');
+}
+function closeUserMenu(e) {
+  if (e && e.target !== document.getElementById('user-modal')) return;
+  document.getElementById('user-modal').classList.remove('open');
+}
+
+/* ─────────────────────────────────────────
+   CLIENT CARD CONTEXT MENU (長押し) タスク7
+───────────────────────────────────────── */
+(function() {
+  let _ctxMenu = null;
+  let _ctxBackdrop = null;
+  let _pressTimer = null;
+
+  function removeCtxMenu() {
+    if (_ctxMenu) { _ctxMenu.remove(); _ctxMenu = null; }
+    if (_ctxBackdrop) { _ctxBackdrop.remove(); _ctxBackdrop = null; }
+  }
+
+  function showCtxMenu(clientId, clientName, x, y) {
+    removeCtxMenu();
+    _ctxBackdrop = document.createElement('div');
+    _ctxBackdrop.className = 'ctx-menu-backdrop';
+    _ctxBackdrop.addEventListener('click', removeCtxMenu);
+    document.body.appendChild(_ctxBackdrop);
+
+    _ctxMenu = document.createElement('div');
+    _ctxMenu.className = 'ctx-menu';
+    _ctxMenu.innerHTML = `
+      <div class="ctx-menu-item" id="ctx-edit">✏️ 編集</div>
+      <div class="ctx-menu-item danger" id="ctx-del">🗑️ 削除</div>`;
+    // 画面内に収める
+    const menuW = 180, menuH = 96;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const left = Math.min(x, vw - menuW - 8);
+    const top  = Math.min(y, vh - menuH - 8);
+    _ctxMenu.style.cssText = `left:${left}px;top:${top}px;`;
+    document.body.appendChild(_ctxMenu);
+
+    document.getElementById('ctx-edit').addEventListener('click', () => {
+      removeCtxMenu();
+      openAddClient(clientId);
+    });
+    document.getElementById('ctx-del').addEventListener('click', () => {
+      removeCtxMenu();
+      deleteClient(clientId);
+    });
+  }
+
+  // client-list の長押しをデリゲート
+  document.addEventListener('pointerdown', e => {
+    const card = e.target.closest('.client-card');
+    if (!card) return;
+    const onclick = card.getAttribute('onclick') || '';
+    const m = onclick.match(/openClientDetail\('([^']+)'\)/);
+    if (!m) return;
+    const clientId = m[1];
+    const clientName = card.querySelector('.client-name')?.textContent || '';
+    _pressTimer = setTimeout(() => {
+      _pressTimer = null;
+      // 振動フィードバック
+      if (navigator.vibrate) navigator.vibrate(30);
+      showCtxMenu(clientId, clientName, e.clientX, e.clientY);
+    }, 500);
+  });
+  document.addEventListener('pointerup',    () => { clearTimeout(_pressTimer); _pressTimer = null; });
+  document.addEventListener('pointermove',  () => { clearTimeout(_pressTimer); _pressTimer = null; });
+  document.addEventListener('pointercancel',() => { clearTimeout(_pressTimer); _pressTimer = null; });
+})();
+
+/* ─────────────────────────────────────────
+   PWA: Service Worker 登録 + インストールバナー
+───────────────────────────────────────── */
+(function() {
+  // Service Worker 登録
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+
+  // PWA インストールバナー（3回目訪問から表示）
+  let _deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    _deferredPrompt = e;
+    maybeShowPwaBanner();
+  });
+
+  function maybeShowPwaBanner() {
+    if (localStorage.getItem('fc_pwa_dismissed')) return;
+    // 訪問回数カウント
+    const visits = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
+    localStorage.setItem('fc_visit_count', visits);
+    if (visits < 3) return;
+
+    const bannerEl = document.getElementById('pwa-install-banner');
+    if (!bannerEl) return;
+    bannerEl.innerHTML = `
+      <div class="pwa-banner">
+        <div class="pwa-banner-icon">📲</div>
+        <div class="pwa-banner-text">
+          <div class="pwa-banner-title">ホーム画面に追加</div>
+          <div class="pwa-banner-desc">アプリとして使うとさらに快適！オフラインでも動作します</div>
+        </div>
+        <div class="pwa-banner-actions">
+          <button class="pwa-install-btn" id="pwa-install-btn">インストール</button>
+          <button class="pwa-dismiss-btn" id="pwa-dismiss-btn">後で</button>
+        </div>
+      </div>`;
+    bannerEl.style.display = 'block';
+
+    document.getElementById('pwa-install-btn').addEventListener('click', () => {
+      if (_deferredPrompt) {
+        _deferredPrompt.prompt();
+        _deferredPrompt.userChoice.then(() => { _deferredPrompt = null; });
+      }
+      bannerEl.style.display = 'none';
+      localStorage.setItem('fc_pwa_dismissed', '1');
+    });
+    document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
+      bannerEl.style.display = 'none';
+      localStorage.setItem('fc_pwa_dismissed', '1');
+    });
+  }
+
+  // 訪問回数を記録（beforeinstallpromptが来ない場合も）
+  const visits = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
+  localStorage.setItem('fc_visit_count', visits);
+})();
+</script>
+</body>
+</html>
