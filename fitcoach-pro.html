@@ -2496,14 +2496,19 @@ function renderExEntries() {
 }
 
 function saveSession() {
+  const saveBtn = document.getElementById('sess-save-btn');
+  if (saveBtn.disabled) return;
+  saveBtn.disabled = true;
+  setTimeout(() => { if (saveBtn) saveBtn.disabled = false; }, 2000);
+
   syncExerciseData();
   const clientId = document.getElementById('sess-client').value;
   const date     = document.getElementById('sess-date').value;
   const duration = parseInt(document.getElementById('sess-duration').value) || null;
   const notes    = document.getElementById('sess-notes').value.trim();
 
-  if (!clientId) { toast('❌ クライアントを選択してください'); return; }
-  if (!date)     { toast('❌ 日付を入力してください'); return; }
+  if (!clientId) { saveBtn.disabled = false; toast('❌ クライアントを選択してください'); return; }
+  if (!date)     { saveBtn.disabled = false; toast('❌ 日付を入力してください'); return; }
 
   const exercises = sessionExercises
     .filter(ex => ex.name.trim())
@@ -2662,14 +2667,19 @@ function cancelBodyEdit() {
 }
 
 function saveBodyRecord() {
+  const saveBtn = document.getElementById('body-save-btn');
+  if (saveBtn.disabled) return;
+  saveBtn.disabled = true;
+  setTimeout(() => { if (saveBtn) saveBtn.disabled = false; }, 2000);
+
   const clientId = document.getElementById('body-client').value;
   const date     = document.getElementById('body-date').value;
   const weight   = parseFloat(document.getElementById('body-weight').value);
   const fatPct   = parseFloat(document.getElementById('body-fat').value);
 
-  if (!clientId) { toast('❌ クライアントを選択してください'); return; }
-  if (!date)     { toast('❌ 日付を入力してください'); return; }
-  if (isNaN(weight) || weight <= 0) { toast('❌ 体重を入力してください'); return; }
+  if (!clientId) { saveBtn.disabled = false; toast('❌ クライアントを選択してください'); return; }
+  if (!date)     { saveBtn.disabled = false; toast('❌ 日付を入力してください'); return; }
+  if (isNaN(weight) || weight <= 0) { saveBtn.disabled = false; toast('❌ 体重を入力してください'); return; }
 
   const fat = isNaN(fatPct) ? null : fatPct;
   const getNum = id => { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; };
@@ -3350,19 +3360,20 @@ function shareProgress(clientId) {
   const thisMonth = today().slice(0, 7);
   const monthSessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
 
-  const text = `【${c.name}さんの進捗報告 💪】
+  const textForShare = `【${c.name}さんの進捗報告 💪】
 ${elapsedDays !== null ? `開始から${elapsedDays}日経過` : ''}
 ${weightLine}
 今月セッション数: ${monthSessions}回
-担当: ${trainerName}
-#FitCoachPro #パーソナルトレーニング`;
+担当: ${trainerName}`;
+
+  const textForCopy = textForShare + `\n#FitCoachPro #パーソナルトレーニング`;
 
   if (navigator.share) {
-    navigator.share({ text: text.trim() })
+    navigator.share({ text: textForShare.trim() })
       .then(() => toast('📤 シェアしました！'))
       .catch(() => {});
   } else {
-    navigator.clipboard.writeText(text.trim())
+    navigator.clipboard.writeText(textForCopy.trim())
       .then(() => toast('📋 クリップボードにコピーしました！'))
       .catch(() => {
         // フォールバック: テキストエリアでコピー
