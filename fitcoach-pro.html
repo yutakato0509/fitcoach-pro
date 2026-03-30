@@ -1008,7 +1008,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
       <span style="color:var(--sub);font-size:14px;font-weight:600;">プロトレーナーのための完全管理ツール</span>
     </div>
     <div style="font-size:12px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:24px;text-transform:uppercase;">導入3分・無料ではじめる</div>
-    <button class="landing-cta-btn" onclick="signInWithGoogle(); gtag('event','login',{method:'google'});">
+    <button class="landing-cta-btn" onclick="gtag('event','click_login_btn',{method:'google'});signInWithGoogle();">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
       Googleでログイン
     </button>
@@ -1433,10 +1433,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
         <div>✅ セッション記録・履歴</div>
         <div>✅ 基本体型測定 (体重・体脂肪率)</div>
         <div>✅ 体重グラフ・種目MAXグラフ</div>
-        <div style="color:#333;">⭐ 詳細体型測定 (胸囲・腹囲など) — Pro</div>
-        <div style="color:#333;">⭐ ボリュームグラフ — Pro</div>
-        <div style="color:#333;">⭐ テンプレート無制限 — Pro</div>
-        <div style="color:#333;">⭐ 進捗レポート生成 — Pro</div>
+        <div style="color:#484848;">⭐ 詳細体型測定 (胸囲・腹囲など) — Pro</div>
+        <div style="color:#484848;">⭐ ボリュームグラフ — Pro</div>
+        <div style="color:#484848;">⭐ テンプレート無制限 — Pro</div>
+        <div style="color:#484848;">⭐ 進捗レポート生成 — Pro</div>
       </div>
     </div>
     <div id="pro-feature-list" style="display:none;margin-bottom:14px;">
@@ -2514,7 +2514,7 @@ function saveSession() {
     .filter(ex => ex.name.trim())
     .map(ex => ({ name: ex.name.trim(), sets: ex.sets.filter(s => s.reps > 0) }));
 
-  if (!exercises.length) { toast('❌ 種目を1つ以上入力してください'); return; }
+  if (!exercises.length) { saveBtn.disabled = false; toast('❌ 種目を1つ以上入力してください'); return; }
 
   const arr = load(K.sessions);
   if (editingSessionId) {
@@ -3119,12 +3119,26 @@ function startUpgrade() {
   window.open(url, '_blank');
   closeUpgradeModal();
   toast('💳 Stripeの決済ページを開きました');
-  // 決済完了後にFirestoreが更新されたら自動検知 (15秒×3回ポーリング)
+  // 決済完了後にFirestoreが更新されたら自動検知
+  // Step1: ログイン状態を1秒間隔で最大10秒待機
+  // Step2: ログイン確認後、Proステータスを3秒間隔で最大30秒ポーリング
   let n = 0;
-  const poll = setInterval(async () => {
-    if (fbAuth.currentUser) await checkProStatus(fbAuth.currentUser.uid);
-    if (isPro || ++n >= 3) clearInterval(poll);
-  }, 15000);
+  const pollAuth = setInterval(() => {
+    if (fbAuth && fbAuth.currentUser) {
+      clearInterval(pollAuth);
+      let m = 0;
+      const pollPro = setInterval(async () => {
+        await checkProStatus(fbAuth.currentUser.uid);
+        if (isPro || ++m >= 10) {
+          clearInterval(pollPro);
+          if (!isPro) toast('💡 反映に時間がかかっています。しばらく後に再度ご確認ください。');
+        }
+      }, 3000);
+    } else if (++n >= 10) {
+      clearInterval(pollAuth);
+      toast('💡 ログインしてProステータスを確認してください');
+    }
+  }, 1000);
 }
 
 async function refreshProStatus() {
@@ -3280,10 +3294,12 @@ function generateReport(clientId) {
     <div class="stat-val">${latestBody.weight}</div>
     <div class="stat-lbl">現在の体重 kg</div>
   </div>` : ''}
-  ${weightChange !== null ? `<div class="stat ${parseFloat(weightChange) < 0 ? 'green' : 'red'}">
-    <div class="stat-val">${sign(weightChange)}</div>
-    <div class="stat-lbl">体重変化 kg</div>
-  </div>` : ''}
+  ${weightChange !== null ? (() => {
+    const isBulk = c.goal === '増量';
+    const wDiff  = parseFloat(weightChange);
+    const wColor = wDiff === 0 ? '' : ((wDiff > 0) === isBulk ? 'green' : 'red');
+    return `<div class="stat ${wColor}"><div class="stat-val">${sign(weightChange)}</div><div class="stat-lbl">体重変化 kg</div></div>`;
+  })() : ''}
   ${fatChange !== null ? `<div class="stat ${parseFloat(fatChange) < 0 ? 'green' : 'red'}">
     <div class="stat-val">${sign(fatChange)}%</div>
     <div class="stat-lbl">体脂肪変化</div>
@@ -3312,7 +3328,7 @@ ${sessions.length ? `
 
 ${c.notes ? `<h2>メモ</h2><p style="font-size:13px;color:#555;line-height:1.7;">${esc(c.notes)}</p>` : ''}
 
-<div class="footer">PT Manager で生成 · ${reportDate}</div>
+<div class="footer">FitCoach Pro で生成 · ${reportDate}</div>
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=800,height=900');
@@ -3378,7 +3394,7 @@ ${weightLine}
       .catch(() => {
         // フォールバック: テキストエリアでコピー
         const ta = document.createElement('textarea');
-        ta.value = text.trim();
+        ta.value = textForCopy.trim();
         ta.style.position = 'fixed'; ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select(); document.execCommand('copy');
@@ -3791,9 +3807,7 @@ function closeUserMenu(e) {
 
   function maybeShowPwaBanner() {
     if (localStorage.getItem('fc_pwa_dismissed')) return;
-    // 訪問回数カウント
-    const visits = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
-    localStorage.setItem('fc_visit_count', visits);
+    const visits = parseInt(localStorage.getItem('fc_visit_count') || '0');
     if (visits < 3) return;
 
     const bannerEl = document.getElementById('pwa-install-banner');
@@ -3826,9 +3840,9 @@ function closeUserMenu(e) {
     });
   }
 
-  // 訪問回数を記録（beforeinstallpromptが来ない場合も）
-  const visits = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
-  localStorage.setItem('fc_visit_count', visits);
+  // 訪問回数を記録（ページロード時に1回だけ）
+  const _v = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
+  localStorage.setItem('fc_visit_count', _v);
 })();
 </script>
 </body>
