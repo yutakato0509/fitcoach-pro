@@ -528,6 +528,80 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
   display: none; letter-spacing: .05em; text-transform: uppercase;
 }
 
+/* ═══════ FIRST-LAUNCH STEP GUIDE ═══════ */
+.step-guide-item {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px;
+}
+.step-guide-item:last-child { margin-bottom: 0; }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 900; flex-shrink: 0;
+}
+.step-num.active { background: var(--accent); color: #fff; }
+.step-num.inactive { background: var(--border); color: var(--sub); }
+.step-guide-item.dim { opacity: .4; }
+
+/* ═══════ SETUP CHECKLIST ═══════ */
+.setup-checklist-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: opacity .15s;
+}
+.setup-checklist-item:last-child { border-bottom: none; }
+.setup-checklist-item:active { opacity: .7; }
+.scl-icon {
+  width: 38px; height: 38px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.scl-done { background: rgba(52,199,89,.15); }
+.scl-todo { background: var(--card2); }
+.scl-body { flex: 1; }
+.scl-title { font-size: 13px; font-weight: 800; color: var(--text); }
+.scl-desc  { font-size: 11px; color: var(--sub); margin-top: 2px; line-height: 1.5; }
+.scl-arrow { font-size: 14px; color: var(--sub); flex-shrink: 0; }
+.scl-check { font-size: 18px; color: var(--green); flex-shrink: 0; }
+
+/* ═══════ REPORT HIGHLIGHT CARD ═══════ */
+.report-highlight {
+  background: linear-gradient(135deg, rgba(0,122,255,.1), rgba(0,200,255,.06));
+  border: 1px solid rgba(0,122,255,.3); border-radius: 16px;
+  padding: 16px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 14px;
+}
+.rh-icon { font-size: 32px; flex-shrink: 0; }
+.rh-body { flex: 1; }
+.rh-title { font-size: 13px; font-weight: 900; color: var(--accent); margin-bottom: 3px; }
+.rh-desc  { font-size: 11px; color: var(--sub); line-height: 1.5; }
+.rh-btn {
+  padding: 10px 14px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 12px; font-weight: 800;
+  white-space: nowrap; flex-shrink: 0; font-family: inherit;
+  -webkit-appearance: none; letter-spacing: .04em;
+}
+
+/* ═══════ VIEW TRANSITION ═══════ */
+.view { animation: viewIn .2s ease-out; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ═══════ CARD HOVER/PRESS ═══════ */
+.client-card { transition: transform .12s, box-shadow .12s; }
+.client-card:active { transform: scale(.985); }
+.btn-sm { transition: transform .1s, opacity .1s; }
+.btn-sm:active { transform: scale(.96); opacity: .85; }
+
+/* ═══════ SESSION COUNT BADGE ═══════ */
+.sess-count-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(0,122,255,.1); border: 1px solid rgba(0,122,255,.2);
+  border-radius: 8px; padding: 4px 10px;
+  font-size: 11px; font-weight: 800; color: var(--accent);
+  margin-bottom: 14px;
+}
+
 /* ═══════ PROGRESS MSG ═══════ */
 .progress-msg {
   display: flex; align-items: center; gap: 8px;
@@ -1231,7 +1305,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
 <div id="view-session" class="view">
   <button class="back-btn" onclick="navBack()">← 戻る</button>
   <div class="card">
-    <div class="card-label">Session Log</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+      <div class="card-label" style="margin-bottom:0;">Session Log</div>
+      <div id="sess-count-badge" class="sess-count-badge" style="display:none;"></div>
+    </div>
     <div class="glow-line"></div>
     <div id="session-edit-banner" class="edit-banner" style="display:none;"></div>
 
@@ -1910,21 +1987,43 @@ function renderClientList() {
   if (!allClients.length) {
     dashEl.style.display = 'none';
     el.innerHTML = `
-      <div class="card" style="text-align:center;padding:28px 20px;">
-        <div style="font-size:48px;margin-bottom:14px;">🏋️</div>
-        <div style="font-size:18px;font-weight:900;margin-bottom:8px;">FitCoach Pro へようこそ</div>
-        <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:20px;">
-          クライアントを追加して<br>セッション・体測定を記録しよう
+      <div style="background:linear-gradient(135deg,rgba(0,122,255,.1),rgba(0,200,255,.05));border:1px solid rgba(0,122,255,.2);border-radius:20px;padding:28px 20px;margin-bottom:12px;text-align:center;">
+        <div style="font-size:52px;margin-bottom:12px;">🏋️</div>
+        <div style="font-size:20px;font-weight:900;margin-bottom:8px;letter-spacing:-.3px;">FitCoach Pro へようこそ</div>
+        <div style="font-size:13px;color:var(--sub);line-height:1.8;margin-bottom:22px;">
+          クライアントの成果を数字で証明する。<br>まず最初のクライアントを追加しましょう。
         </div>
-        <button class="btn btn-primary" onclick="openAddClient(null)">＋ 最初のクライアントを追加</button>
-        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
-          <div style="font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;">使い方</div>
-          <div style="font-size:12px;color:var(--sub);line-height:2;">
-            <div>① クライアントを追加 (＋ボタン)</div>
-            <div>② 詳細画面でセッション・体重を記録</div>
-            <div>③ グラフで進捗を確認</div>
+        <button class="btn btn-primary" style="font-size:15px;padding:17px;" onclick="openAddClient(null)">＋ 最初のクライアントを追加</button>
+        <div style="font-size:11px;color:var(--sub);margin-top:10px;font-weight:700;">所要時間: 約1分</div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:10px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;">3ステップではじめる</div>
+        <div class="step-guide-item">
+          <div class="step-num active">1</div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">クライアントを追加</div>
+            <div style="font-size:11px;color:var(--sub);margin-top:3px;line-height:1.6;">名前・目標・開始日を入力するだけ。1分でセットアップ完了。</div>
           </div>
         </div>
+        <div class="step-guide-item dim">
+          <div class="step-num inactive">2</div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">セッション・体重を記録</div>
+            <div style="font-size:11px;color:var(--sub);margin-top:3px;line-height:1.6;">種目・重量・回数を記録。次回は前回データが自動入力されます。</div>
+          </div>
+        </div>
+        <div class="step-guide-item dim">
+          <div class="step-num inactive">3</div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">進捗レポートをクライアントに渡す</div>
+            <div style="font-size:11px;color:var(--sub);margin-top:3px;line-height:1.6;">体重変化・PR・セッション履歴が1枚のレポートに。継続率が上がります。</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:4px;">
+        <button onclick="loadDemoData()" style="background:transparent;border:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;padding:10px;letter-spacing:.03em;">🎮 まずデモデータで試してみる</button>
       </div>`;
     return;
   }
@@ -1962,14 +2061,24 @@ function renderClientList() {
       <div class="dash-stat-label">要フォロー</div>
     </div>`;
 
-  el.innerHTML = clients.map(c => {
+  el.innerHTML = clients.map((c, idx) => {
     const cSessions  = sessions.filter(s => s.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date));
     const sessCount  = cSessions.length;
     const lastSess   = cSessions[0];
     const latestBody = bodies.filter(b => b.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date))[0];
     const initial    = (c.name || '?')[0].toUpperCase();
     const genderLabel = c.gender === 'male' ? '男性' : c.gender === 'female' ? '女性' : 'その他';
-    const meta = [c.age ? c.age + '歳' : null, genderLabel, latestBody ? latestBody.weight + 'kg' : null].filter(Boolean).join(' · ');
+    // 体重変化表示
+    const prevBody2 = bodies.filter(b => b.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date))[1];
+    let weightMeta = latestBody ? latestBody.weight + 'kg' : null;
+    if (latestBody && prevBody2) {
+      const diff2 = latestBody.weight - prevBody2.weight;
+      const isBulk2 = c.goal === '増量';
+      const sign2 = diff2 > 0 ? '▲' : diff2 < 0 ? '▼' : '±';
+      const color2 = diff2 === 0 ? '' : ((diff2 > 0) === isBulk2 ? '#34C759' : '#FF3B30');
+      weightMeta = `${latestBody.weight}kg <span style="color:${color2};font-size:10px;font-weight:800;">${sign2}${Math.abs(diff2).toFixed(1)}</span>`;
+    }
+    const meta = [c.age ? c.age + '歳' : null, genderLabel, weightMeta].filter(Boolean).join(' · ');
 
     let daysBadge = '';
     if (lastSess) {
@@ -1996,11 +2105,11 @@ function renderClientList() {
     }
 
     return `
-      <div class="client-card" onclick="openClientDetail('${c.id}')">
+      <div class="client-card" onclick="openClientDetail('${c.id}')" style="animation:cardIn .22s ease-out both;animation-delay:${Math.min(idx * 40, 200)}ms;">
         <div class="client-avatar">${esc(initial)}</div>
         <div class="client-info">
           <div class="client-name">${esc(c.name)}</div>
-          <div class="client-meta">${esc(meta)}</div>
+          <div class="client-meta">${meta}</div>
           <div><span class="goal-badge goal-${c.goal}">${esc(c.goal)}</span></div>
           ${nextSessBadge}
         </div>
@@ -2268,8 +2377,45 @@ function renderClientDetail(clientId) {
         <button class="btn-sm btn-sm-blue" style="flex:1;" onclick="openGraphForClient('${c.id}')">📊 グラフを見る</button>
         <button class="btn-sm" style="background:rgba(255,59,48,.08);color:var(--red);flex:1;" onclick="deleteClient('${c.id}')">🗑️ 削除</button>
       </div>
+    </div>
+
+    ${sessions.length >= 2 && bodies.length >= 1 ? `
+    <div class="report-highlight">
+      <div class="rh-icon">📄</div>
+      <div class="rh-body">
+        <div class="rh-title">進捗レポートを生成</div>
+        <div class="rh-desc">体重変化・PR・セッション履歴を<br>1枚のレポートにまとめてクライアントに渡せます</div>
+      </div>
+      <button class="rh-btn" onclick="${isPro ? `generateReport('${c.id}')` : 'showUpgrade()'}">
+        ${isPro ? '生成' : '⭐ Pro'}
+      </button>
+    </div>` : sessions.length === 0 && bodies.length === 0 ? `
+    <div class="card">
+      <div style="font-size:10px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">セットアップ</div>
+      <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">以下を記録すると進捗レポートが生成できます</div>
+      <div class="setup-checklist-item" onclick="openSessionForClient('${c.id}')">
+        <div class="scl-icon scl-todo">💪</div>
+        <div class="scl-body">
+          <div class="scl-title">初回セッションを記録する</div>
+          <div class="scl-desc">種目・重量・回数を記録しましょう</div>
+        </div>
+        <div class="scl-arrow">›</div>
+      </div>
+      <div class="setup-checklist-item" onclick="openBodyForClient('${c.id}')">
+        <div class="scl-icon scl-todo">⚖️</div>
+        <div class="scl-body">
+          <div class="scl-title">初回体測定を記録する</div>
+          <div class="scl-desc">体重・体脂肪率を記録しましょう</div>
+        </div>
+        <div class="scl-arrow">›</div>
+      </div>
+    </div>` : `
+    <div style="margin-bottom:8px;">
       <button class="report-btn" onclick="generateReport('${c.id}')">📄 進捗レポート生成${isPro ? '' : ' (Pro)'}</button>
-      <button class="report-btn" style="margin-top:6px;background:linear-gradient(135deg,rgba(52,199,89,.15),rgba(0,200,128,.1));border-color:rgba(52,199,89,.3);color:var(--green);" onclick="shareProgress('${c.id}')">📤 進捗をシェア</button>
+    </div>`}
+
+    <div style="margin-bottom:8px;">
+      <button class="report-btn" style="background:linear-gradient(135deg,rgba(52,199,89,.15),rgba(0,200,128,.1));border-color:rgba(52,199,89,.3);color:var(--green);" onclick="shareProgress('${c.id}')">📤 進捗をシェア</button>
     </div>
 
     ${latestBody ? `
@@ -2360,9 +2506,8 @@ function initSessionForm(clientId) {
 function openSessionForClient(clientId) {
   initSessionForm(clientId);
   // 前回セッションを自動入力
-  const lastSession = load(K.sessions)
-    .filter(s => s.clientId === clientId)
-    .sort((a,b) => b.date.localeCompare(a.date))[0];
+  const clientSessions = load(K.sessions).filter(s => s.clientId === clientId);
+  const lastSession = clientSessions.sort((a,b) => b.date.localeCompare(a.date))[0];
   if (lastSession && lastSession.exercises?.length) {
     sessionExercises = lastSession.exercises.map(ex => ({
       exId: uid(), name: ex.name,
@@ -2371,6 +2516,13 @@ function openSessionForClient(clientId) {
     renderExEntries();
     const hint = document.getElementById('autofill-hint');
     if (hint) hint.style.display = 'block';
+  }
+  // セッション回数バッジ
+  const badge = document.getElementById('sess-count-badge');
+  if (badge) {
+    const n = clientSessions.length + 1;
+    badge.textContent = `${n}回目のセッション`;
+    badge.style.display = 'inline-flex';
   }
   navTo('session');
 }
@@ -2396,6 +2548,8 @@ function editSession(sessionId) {
   banner.style.display = 'block';
   document.getElementById('sess-save-btn').textContent = '✓ 更新する';
   document.getElementById('sess-cancel-btn').style.display = 'block';
+  const badge = document.getElementById('sess-count-badge');
+  if (badge) badge.style.display = 'none';
   navTo('session');
 }
 
@@ -2411,10 +2565,16 @@ function onSessClientChange() {
   if (editingSessionId) return; // 編集中はオートフィルしない
   const clientId = document.getElementById('sess-client').value;
   if (!clientId) return;
-  const lastSession = load(K.sessions)
-    .filter(s => s.clientId === clientId)
-    .sort((a,b) => b.date.localeCompare(a.date))[0];
+  const clientSessions = load(K.sessions).filter(s => s.clientId === clientId);
+  const lastSession = clientSessions.sort((a,b) => b.date.localeCompare(a.date))[0];
   const hint = document.getElementById('autofill-hint');
+  // セッション回数バッジ更新
+  const badge = document.getElementById('sess-count-badge');
+  if (badge) {
+    const n = clientSessions.length + 1;
+    badge.textContent = `${n}回目のセッション`;
+    badge.style.display = 'inline-flex';
+  }
   if (lastSession && lastSession.exercises?.length) {
     sessionExercises = lastSession.exercises.map(ex => ({
       exId: uid(), name: ex.name,
