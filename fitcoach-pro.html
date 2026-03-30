@@ -623,6 +623,31 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
 /* ═══════ MINI CHART ═══════ */
 .mini-chart-wrap { position: relative; height: 100px; margin-top: 14px; }
 
+/* ═══════ LOCKED FEATURE ROW ═══════ */
+.locked-feat {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: rgba(255,149,0,.5); line-height: 2.4;
+  cursor: pointer;
+}
+.locked-feat:active { color: var(--amber); }
+.locked-feat .lf-lock { font-size: 11px; opacity: .6; }
+
+/* ═══════ REPORT PROGRESS CHECKLIST ═══════ */
+.rp-checklist {
+  background: linear-gradient(135deg, rgba(0,122,255,.06), rgba(0,200,255,.03));
+  border: 1px solid rgba(0,122,255,.2); border-radius: 16px;
+  padding: 14px 16px; margin-bottom: 8px;
+}
+.rp-header { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+.rp-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.rp-item + .rp-item { border-top: 1px solid rgba(255,255,255,.04); }
+.rp-check-done { font-size: 18px; }
+.rp-check-todo { width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 50%; flex-shrink: 0; }
+.rp-label { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; }
+.rp-count { font-size: 11px; color: var(--sub); }
+.rp-label.done { color: var(--sub); text-decoration: line-through; }
+.rp-action { font-size: 11px; font-weight: 800; color: var(--accent); cursor: pointer; }
+
 /* ═══════ TEMPLATE CHIP ═══════ */
 .tmpl-chip {
   display: flex; align-items: center; justify-content: space-between;
@@ -1238,6 +1263,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
     </div>
     <button class="upgrade-btn" onclick="showUpgrade()">Pro へ</button>
   </div>
+  <div id="trainer-nudge" style="display:none;align-items:center;gap:10px;background:rgba(255,149,0,.07);border:1px solid rgba(255,149,0,.2);border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer;" onclick="nav('settings',null)">
+    <span style="font-size:20px;">👤</span>
+    <div style="flex:1;">
+      <div style="font-size:12px;font-weight:800;color:var(--amber);">トレーナー名を設定してください</div>
+      <div style="font-size:11px;color:var(--sub);margin-top:2px;">レポートに名前が表示されます →</div>
+    </div>
+  </div>
   <div id="client-list"></div>
 </div>
 
@@ -1517,10 +1549,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
         <div>✅ セッション記録・履歴</div>
         <div>✅ 基本体型測定 (体重・体脂肪率)</div>
         <div>✅ 体重グラフ・種目MAXグラフ</div>
-        <div style="color:#484848;">⭐ 詳細体型測定 (胸囲・腹囲など) — Pro</div>
-        <div style="color:#484848;">⭐ ボリュームグラフ — Pro</div>
-        <div style="color:#484848;">⭐ テンプレート無制限 — Pro</div>
-        <div style="color:#484848;">⭐ 進捗レポート生成 — Pro</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> 詳細体型測定 (胸囲・腹囲など)</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> ボリュームグラフ</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> テンプレート無制限</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> 進捗レポート生成</div>
       </div>
     </div>
     <div id="pro-feature-list" style="display:none;margin-bottom:14px;">
@@ -1788,6 +1820,7 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   _toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  if (/^[✅🎉🏆🔥⚖️]/.test(msg) && navigator.vibrate) navigator.vibrate(12);
 }
 
 /* ─────────────────────────────────────────
@@ -2069,6 +2102,15 @@ function renderClientList() {
       <div class="dash-stat-val">${needsAttention}</div>
       <div class="dash-stat-label">要フォロー</div>
     </div>`;
+
+  // トレーナー名未設定 nudge
+  const settings = loadObj(K.settings);
+  const nudgeEl = document.getElementById('trainer-nudge');
+  if (!settings.name && nudgeEl) {
+    nudgeEl.style.display = 'flex';
+  } else if (nudgeEl) {
+    nudgeEl.style.display = 'none';
+  }
 
   el.innerHTML = clients.map((c, idx) => {
     const cSessions  = sessions.filter(s => s.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date));
@@ -2398,29 +2440,19 @@ function renderClientDetail(clientId) {
       <button class="rh-btn" onclick="${isPro ? `generateReport('${c.id}')` : 'showUpgrade()'}">
         ${isPro ? '生成' : '⭐ Pro'}
       </button>
-    </div>` : sessions.length === 0 && bodies.length === 0 ? `
-    <div class="card">
-      <div style="font-size:10px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px;">セットアップ</div>
-      <div style="font-size:12px;color:var(--sub);margin-bottom:12px;line-height:1.6;">以下を記録すると進捗レポートが生成できます</div>
-      <div class="setup-checklist-item" onclick="openSessionForClient('${c.id}')">
-        <div class="scl-icon scl-todo">💪</div>
-        <div class="scl-body">
-          <div class="scl-title">初回セッションを記録する</div>
-          <div class="scl-desc">種目・重量・回数を記録しましょう</div>
-        </div>
-        <div class="scl-arrow">›</div>
-      </div>
-      <div class="setup-checklist-item" onclick="openBodyForClient('${c.id}')">
-        <div class="scl-icon scl-todo">⚖️</div>
-        <div class="scl-body">
-          <div class="scl-title">初回体測定を記録する</div>
-          <div class="scl-desc">体重・体脂肪率を記録しましょう</div>
-        </div>
-        <div class="scl-arrow">›</div>
-      </div>
     </div>` : `
-    <div style="margin-bottom:8px;">
-      <button class="report-btn" onclick="generateReport('${c.id}')">📄 進捗レポート生成${isPro ? '' : ' (Pro)'}</button>
+    <div class="rp-checklist">
+      <div class="rp-header">📄 進捗レポートまであと${(sessions.length >= 2 ? 0 : 1) + (bodies.length >= 1 ? 0 : 1)}ステップ</div>
+      <div class="rp-item" ${sessions.length < 2 ? `onclick="openSessionForClient('${c.id}')" style="cursor:pointer;"` : ''}>
+        ${sessions.length >= 2
+          ? `<span class="rp-check-done">✅</span><span class="rp-label done">セッションを2回以上記録</span><span class="rp-count">${sessions.length}回 完了</span>`
+          : `<span class="rp-check-todo"></span><span class="rp-label">セッションを2回以上記録</span><span class="rp-count">${sessions.length}/2</span><span class="rp-action">→</span>`}
+      </div>
+      <div class="rp-item" ${bodies.length === 0 ? `onclick="openBodyForClient('${c.id}')" style="cursor:pointer;"` : ''}>
+        ${bodies.length >= 1
+          ? `<span class="rp-check-done">✅</span><span class="rp-label done">体測定を記録</span><span class="rp-count">完了</span>`
+          : `<span class="rp-check-todo"></span><span class="rp-label">体測定を1回記録</span><span class="rp-count">0/1</span><span class="rp-action">→</span>`}
+      </div>
     </div>`}
 
     <div style="margin-bottom:8px;">
@@ -2439,14 +2471,14 @@ function renderClientDetail(clientId) {
       <div class="card-label">Session History</div>
       <div class="glow-line"></div>
       ${sessHTML}
-      ${sessions.length ? `<button class="btn-sm btn-sm-blue" style="width:100%;margin-top:10px;padding:11px;" onclick="openSessionForClient('${c.id}')">＋ セッションを記録</button>` : ''}
+      <button class="btn-sm btn-sm-blue" style="width:100%;margin-top:10px;padding:11px;" onclick="openSessionForClient('${c.id}')">＋ セッションを記録</button>
     </div>
 
     <div class="card">
       <div class="card-label" style="color:var(--amber);">Body Measurement History</div>
       <div class="glow-line" style="background: linear-gradient(90deg, transparent, rgba(255,149,0,.2) 50%, transparent);"></div>
       ${bodyHTML}
-      ${bodies.length ? `<button class="btn-sm btn-sm-green" style="width:100%;margin-top:10px;padding:11px;" onclick="openBodyForClient('${c.id}')">＋ 体測定を記録</button>` : ''}
+      <button class="btn-sm btn-sm-green" style="width:100%;margin-top:10px;padding:11px;" onclick="openBodyForClient('${c.id}')">＋ 体測定を記録</button>
     </div>
 
     <div style="margin-bottom:12px;">
@@ -3170,6 +3202,8 @@ function saveTrainerProfile() {
   const gym  = document.getElementById('trainer-gym').value.trim();
   saveObj(K.settings, { name, gym });
   toast('✅ プロフィールを保存しました');
+  const nudge = document.getElementById('trainer-nudge');
+  if (nudge && name) nudge.style.display = 'none';
 }
 
 /* ─────────────────────────────────────────
