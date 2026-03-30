@@ -1104,6 +1104,11 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
   <div class="landing-footer">
     <button class="landing-footer-btn" style="font-size:18px;padding:20px;" onclick="signInWithGoogle(); gtag('event','login',{method:'google'});">今すぐ無料で始める</button>
     <div style="font-size:12px;color:var(--sub);margin-top:8px;">クレジットカード不要 · Googleアカウントで即時登録</div>
+    <div style="display:flex;justify-content:center;gap:16px;margin-top:14px;flex-wrap:wrap;">
+      <span style="font-size:11px;color:var(--sub);display:flex;align-items:center;gap:4px;">🔒 データはクラウドに安全保存</span>
+      <span style="font-size:11px;color:var(--sub);display:flex;align-items:center;gap:4px;">📤 いつでもエクスポート可能</span>
+      <span style="font-size:11px;color:var(--sub);display:flex;align-items:center;gap:4px;">🚫 いつでも解約OK</span>
+    </div>
     <button onclick="loadDemoData(); document.getElementById('view-landing').style.display='none'; document.querySelector('.bottom-nav').style.display='flex';" style="margin-top:16px;background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--sub);font-size:13px;font-weight:700;padding:12px 24px;border-radius:12px;cursor:pointer;font-family:inherit;letter-spacing:.04em;">🎮 まずデモを試す（登録不要）</button>
     <div style="margin-top:24px;font-size:11px;color:var(--sub);line-height:2.2;">
       <a href="/tokusho.html" style="color:var(--sub);text-decoration:underline;">特定商取引法</a>
@@ -1506,7 +1511,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
       <button class="faq-question" onclick="toggleFaq(this)">
         <span>いつでもキャンセルできますか？</span><span class="faq-arrow">▾</span>
       </button>
-      <div class="faq-answer">はい。設定画面または stripe.com/billing からいつでもキャンセル可能です。次の請求日以降は課金されません。</div>
+      <div class="faq-answer">はい。設定画面 → プラン →「Proプランを解約する」からいつでもキャンセル可能です。キャンセル後も当該請求期間の終了日まで引き続きご利用いただけます。</div>
     </div>
     <div class="faq-item">
       <button class="faq-question" onclick="toggleFaq(this)">
@@ -1868,17 +1873,24 @@ function handleUpgradeRedirect() {
   // URLパラメータをクリア (履歴に残さない)
   window.history.replaceState({}, '', window.location.pathname);
   toast('🎉 決済完了！Proステータスを確認中...');
-  // Firebase初期化後にProチェック (最大5回・3秒間隔)
+  // Firebase初期化後にProチェック → さらにWebhook反映まで最大30秒待機
   let n = 0;
-  const poll = setInterval(() => {
+  const pollAuth = setInterval(() => {
     if (fbAuth && fbAuth.currentUser) {
-      checkProStatus(fbAuth.currentUser.uid);
-      clearInterval(poll);
-    } else if (++n >= 5) {
-      clearInterval(poll);
+      clearInterval(pollAuth);
+      let m = 0;
+      const pollPro = setInterval(async () => {
+        await checkProStatus(fbAuth.currentUser.uid);
+        if (isPro || ++m >= 10) {
+          clearInterval(pollPro);
+          if (!isPro) toast('💡 反映に時間がかかっています。しばらく後に再度ご確認ください。');
+        }
+      }, 3000);
+    } else if (++n >= 10) {
+      clearInterval(pollAuth);
       toast('💡 ログインしてProステータスを確認してください');
     }
-  }, 3000);
+  }, 1000);
 }
 
 /* ─────────────────────────────────────────
@@ -2110,7 +2122,8 @@ function renderClientDetail(clientId) {
     let diffHTML = '';
     if (diff !== null) {
       const sign  = diff > 0 ? '▲' : diff < 0 ? '▼' : '±';
-      const color = diff > 0 ? 'var(--red)' : diff < 0 ? 'var(--green)' : 'var(--sub)';
+      const isBulk = c.goal === '増量';
+      const color = diff === 0 ? 'var(--sub)' : ((diff > 0) === isBulk ? 'var(--green)' : 'var(--red)');
       diffHTML = `<span class="bw-diff" style="color:${color};">${sign}${Math.abs(diff).toFixed(1)}kg</span>`;
     }
     bwHTML = `
@@ -2127,8 +2140,10 @@ function renderClientDetail(clientId) {
     const oldBody  = bodies.filter(b => b.date <= cutoff30).sort((a,b) => b.date.localeCompare(a.date))[0];
     if (oldBody) {
       const d30 = latestBody.weight - oldBody.weight;
-      const icon = d30 < -1 ? '🎉' : d30 > 1 ? '📈' : '➡️';
-      const color = d30 < 0 ? 'var(--green)' : d30 > 0 ? 'var(--red)' : 'var(--sub)';
+      const isBulk = c.goal === '増量';
+      const isGood = isBulk ? d30 > 1 : d30 < -1;
+      const icon  = isGood ? '🎉' : (isBulk ? d30 < -1 : d30 > 1) ? '📈' : '➡️';
+      const color = d30 === 0 ? 'var(--sub)' : ((d30 > 0) === isBulk ? 'var(--green)' : 'var(--red)');
       const sign  = d30 > 0 ? '+' : '';
       progressHTML = `
         <div class="progress-msg">
