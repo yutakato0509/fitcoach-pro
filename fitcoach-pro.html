@@ -2962,16 +2962,16 @@ function exportCSV() {
   const clients  = load(K.clients);
   const sessions = load(K.sessions);
   const bodies   = load(K.body);
-  const rows = [['クライアント名','日付','種別','内容','体重(kg)','体脂肪率(%)','セット数','メモ']];
+  const rows = [['クライアント名','日付','種別','内容','体重(kg)','体脂肪率(%)','胸囲(cm)','腹囲(cm)','臀囲(cm)','腕囲(cm)','太腿囲(cm)','セット数','メモ']];
 
   clients.forEach(c => {
     sessions.filter(s => s.clientId === c.id).forEach(s => {
       const exNames  = (s.exercises||[]).map(e=>e.name).join(' / ');
       const setCount = (s.exercises||[]).reduce((n,e)=>n+(e.sets||[]).length,0);
-      rows.push([c.name, s.date, 'セッション', exNames, '', '', setCount, s.notes||'']);
+      rows.push([c.name, s.date, 'セッション', exNames, '', '', '', '', '', '', '', setCount, s.notes||'']);
     });
     bodies.filter(b => b.clientId === c.id).forEach(b => {
-      rows.push([c.name, b.date, '体測定', '', b.weight||'', b.fatPct||'', '', '']);
+      rows.push([c.name, b.date, '体測定', '', b.weight||'', b.fatPct??'', b.chest??'', b.waist??'', b.hip??'', b.arm??'', b.thigh??'', '', '']);
     });
   });
 
