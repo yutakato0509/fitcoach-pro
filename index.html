@@ -9,13 +9,13 @@
 <meta name="description" content="パーソナルトレーナーのためのクライアント管理SaaS。セッション記録・体測定・進捗グラフを一元管理。無料で3名まで利用可能。">
 <meta property="og:title" content="FitCoach Pro — プロトレーナーのクライアント管理">
 <meta property="og:description" content="セッション記録・体測定・進捗グラフをワンアプリで。無料プランあり。">
-<meta property="og:url" content="https://fitcoachpro-app.netlify.app">
+<meta property="og:url" content="https://fitcoach-pro.pages.dev">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://fitcoachpro-app.netlify.app/og-image.svg">
+<meta property="og:image" content="https://fitcoach-pro.pages.dev/og-image.svg">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="FitCoach Pro — プロトレーナーのクライアント管理">
 <meta name="twitter:description" content="セッション記録・体測定・進捗グラフをワンアプリで。無料プランあり。">
-<link rel="canonical" href="https://fitcoachpro-app.netlify.app">
+<link rel="canonical" href="https://fitcoach-pro.pages.dev">
 
 <!-- ═══ PWA ═══ -->
 <link rel="manifest" href="/manifest.json">
@@ -25,13 +25,12 @@
 <meta name="apple-mobile-web-app-title" content="FitCoach Pro">
 
 <!-- ═══ GA4 ═══ -->
-<!-- GA4 Measurement IDをG-XXXXXXXXXXに差し替えてください -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-9RJSVM1XE5"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
-  gtag('config', 'G-XXXXXXXXXX');
+  gtag('config', 'G-9RJSVM1XE5');
 </script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
@@ -1106,6 +1105,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
     <button class="landing-footer-btn" style="font-size:18px;padding:20px;" onclick="signInWithGoogle(); gtag('event','login',{method:'google'});">今すぐ無料で始める</button>
     <div style="font-size:12px;color:var(--sub);margin-top:8px;">クレジットカード不要 · Googleアカウントで即時登録</div>
     <button onclick="loadDemoData(); document.getElementById('view-landing').style.display='none'; document.querySelector('.bottom-nav').style.display='flex';" style="margin-top:16px;background:transparent;border:1px solid rgba(255,255,255,.15);color:var(--sub);font-size:13px;font-weight:700;padding:12px 24px;border-radius:12px;cursor:pointer;font-family:inherit;letter-spacing:.04em;">🎮 まずデモを試す（登録不要）</button>
+    <div style="margin-top:24px;font-size:11px;color:var(--sub);">
+      <a href="/tokusho.html" style="color:var(--sub);text-decoration:underline;">特定商取引法に基づく表記</a>
+      &nbsp;·&nbsp; © 2026 加藤 祐太
+    </div>
   </div>
 </div>
 
