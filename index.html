@@ -16,6 +16,7 @@
 <meta name="twitter:title" content="FitCoach Pro — プロトレーナーのクライアント管理">
 <meta name="twitter:description" content="セッション記録・体測定・進捗グラフをワンアプリで。無料プランあり。">
 <link rel="canonical" href="https://fitcoach-pro.pages.dev">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
 <!-- ═══ PWA ═══ -->
 <link rel="manifest" href="/manifest.json">
@@ -362,6 +363,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
 .set-input.reps { color: var(--text); }
 .set-del { background: none; border: none; color: #333; font-size: 18px; cursor: pointer; padding: 4px; line-height: 1; text-align: center; }
 .set-del:active { color: var(--red); }
+.set-adj-btn {
+  background: var(--card); border: 1.5px solid var(--border); border-radius: 7px;
+  color: var(--sub); font-size: 15px; font-weight: 700; width: 30px; height: 36px;
+  cursor: pointer; font-family: inherit; flex-shrink: 0; line-height: 1;
+  transition: border-color .15s, color .15s; -webkit-appearance: none;
+}
+.set-adj-btn:active { border-color: var(--accent); color: var(--accent); }
 .add-set-btn {
   width: 100%; padding: 9px; background: transparent;
   border: 1px dashed var(--border); border-radius: 9px;
@@ -528,6 +536,80 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
   display: none; letter-spacing: .05em; text-transform: uppercase;
 }
 
+/* ═══════ FIRST-LAUNCH STEP GUIDE ═══════ */
+.step-guide-item {
+  display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px;
+}
+.step-guide-item:last-child { margin-bottom: 0; }
+.step-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 900; flex-shrink: 0;
+}
+.step-num.active { background: var(--accent); color: #fff; }
+.step-num.inactive { background: var(--border); color: var(--sub); }
+.step-guide-item.dim { opacity: .4; }
+
+/* ═══════ SETUP CHECKLIST ═══════ */
+.setup-checklist-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: opacity .15s;
+}
+.setup-checklist-item:last-child { border-bottom: none; }
+.setup-checklist-item:active { opacity: .7; }
+.scl-icon {
+  width: 38px; height: 38px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.scl-done { background: rgba(52,199,89,.15); }
+.scl-todo { background: var(--card2); }
+.scl-body { flex: 1; }
+.scl-title { font-size: 13px; font-weight: 800; color: var(--text); }
+.scl-desc  { font-size: 11px; color: var(--sub); margin-top: 2px; line-height: 1.5; }
+.scl-arrow { font-size: 14px; color: var(--sub); flex-shrink: 0; }
+.scl-check { font-size: 18px; color: var(--green); flex-shrink: 0; }
+
+/* ═══════ REPORT HIGHLIGHT CARD ═══════ */
+.report-highlight {
+  background: linear-gradient(135deg, rgba(0,122,255,.1), rgba(0,200,255,.06));
+  border: 1px solid rgba(0,122,255,.3); border-radius: 16px;
+  padding: 16px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 14px;
+}
+.rh-icon { font-size: 32px; flex-shrink: 0; }
+.rh-body { flex: 1; }
+.rh-title { font-size: 13px; font-weight: 900; color: var(--accent); margin-bottom: 3px; }
+.rh-desc  { font-size: 11px; color: var(--sub); line-height: 1.5; }
+.rh-btn {
+  padding: 10px 14px; border-radius: 12px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 12px; font-weight: 800;
+  white-space: nowrap; flex-shrink: 0; font-family: inherit;
+  -webkit-appearance: none; letter-spacing: .04em;
+}
+
+/* ═══════ VIEW TRANSITION ═══════ */
+.view { animation: viewIn .2s ease-out; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ═══════ CARD HOVER/PRESS ═══════ */
+.client-card { transition: transform .12s, box-shadow .12s; }
+.client-card:active { transform: scale(.985); }
+.btn-sm { transition: transform .1s, opacity .1s; }
+.btn-sm:active { transform: scale(.96); opacity: .85; }
+
+/* ═══════ SESSION COUNT BADGE ═══════ */
+.sess-count-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(0,122,255,.1); border: 1px solid rgba(0,122,255,.2);
+  border-radius: 8px; padding: 4px 10px;
+  font-size: 11px; font-weight: 800; color: var(--accent);
+  margin-bottom: 14px;
+}
+
 /* ═══════ PROGRESS MSG ═══════ */
 .progress-msg {
   display: flex; align-items: center; gap: 8px;
@@ -541,6 +623,31 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
 
 /* ═══════ MINI CHART ═══════ */
 .mini-chart-wrap { position: relative; height: 100px; margin-top: 14px; }
+
+/* ═══════ LOCKED FEATURE ROW ═══════ */
+.locked-feat {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: rgba(255,149,0,.5); line-height: 2.4;
+  cursor: pointer;
+}
+.locked-feat:active { color: var(--amber); }
+.locked-feat .lf-lock { font-size: 11px; opacity: .6; }
+
+/* ═══════ REPORT PROGRESS CHECKLIST ═══════ */
+.rp-checklist {
+  background: linear-gradient(135deg, rgba(0,122,255,.06), rgba(0,200,255,.03));
+  border: 1px solid rgba(0,122,255,.2); border-radius: 16px;
+  padding: 14px 16px; margin-bottom: 8px;
+}
+.rp-header { font-size: 10px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+.rp-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.rp-item + .rp-item { border-top: 1px solid rgba(255,255,255,.04); }
+.rp-check-done { font-size: 18px; }
+.rp-check-todo { width: 22px; height: 22px; border: 2px solid var(--border); border-radius: 50%; flex-shrink: 0; }
+.rp-label { font-size: 12px; font-weight: 700; color: var(--text); flex: 1; }
+.rp-count { font-size: 11px; color: var(--sub); }
+.rp-label.done { color: var(--sub); text-decoration: line-through; }
+.rp-action { font-size: 11px; font-weight: 800; color: var(--accent); cursor: pointer; }
 
 /* ═══════ TEMPLATE CHIP ═══════ */
 .tmpl-chip {
@@ -1008,7 +1115,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
       <span style="color:var(--sub);font-size:14px;font-weight:600;">プロトレーナーのための完全管理ツール</span>
     </div>
     <div style="font-size:12px;color:var(--accent);font-weight:800;letter-spacing:.06em;margin-bottom:24px;text-transform:uppercase;">導入3分・無料ではじめる</div>
-    <button class="landing-cta-btn" onclick="signInWithGoogle(); gtag('event','login',{method:'google'});">
+    <button class="landing-cta-btn" onclick="gtag('event','click_login_btn',{method:'google'});signInWithGoogle();">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
       Googleでログイン
     </button>
@@ -1157,6 +1264,13 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
     </div>
     <button class="upgrade-btn" onclick="showUpgrade()">Pro へ</button>
   </div>
+  <div id="trainer-nudge" style="display:none;align-items:center;gap:10px;background:rgba(255,149,0,.07);border:1px solid rgba(255,149,0,.2);border-radius:14px;padding:12px 14px;margin-bottom:10px;cursor:pointer;" onclick="nav('settings',null)">
+    <span style="font-size:20px;">👤</span>
+    <div style="flex:1;">
+      <div style="font-size:12px;font-weight:800;color:var(--amber);">トレーナー名を設定してください</div>
+      <div style="font-size:11px;color:var(--sub);margin-top:2px;">レポートに名前が表示されます →</div>
+    </div>
+  </div>
   <div id="client-list"></div>
 </div>
 
@@ -1231,7 +1345,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
 <div id="view-session" class="view">
   <button class="back-btn" onclick="navBack()">← 戻る</button>
   <div class="card">
-    <div class="card-label">Session Log</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+      <div class="card-label" style="margin-bottom:0;">Session Log</div>
+      <div id="sess-count-badge" class="sess-count-badge" style="display:none;"></div>
+    </div>
     <div class="glow-line"></div>
     <div id="session-edit-banner" class="edit-banner" style="display:none;"></div>
 
@@ -1433,10 +1550,10 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
         <div>✅ セッション記録・履歴</div>
         <div>✅ 基本体型測定 (体重・体脂肪率)</div>
         <div>✅ 体重グラフ・種目MAXグラフ</div>
-        <div style="color:#333;">⭐ 詳細体型測定 (胸囲・腹囲など) — Pro</div>
-        <div style="color:#333;">⭐ ボリュームグラフ — Pro</div>
-        <div style="color:#333;">⭐ テンプレート無制限 — Pro</div>
-        <div style="color:#333;">⭐ 進捗レポート生成 — Pro</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> 詳細体型測定 (胸囲・腹囲など)</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> ボリュームグラフ</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> テンプレート無制限</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> 進捗レポート生成</div>
       </div>
     </div>
     <div id="pro-feature-list" style="display:none;margin-bottom:14px;">
@@ -1704,6 +1821,7 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   _toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  if (/^[✅🎉🏆🔥⚖️]/.test(msg) && navigator.vibrate) navigator.vibrate(12);
 }
 
 /* ─────────────────────────────────────────
@@ -1722,6 +1840,8 @@ let graphExMode = 'max'; // 'max' | 'vol'
 
 // Session form state
 let sessionExercises = []; // [{exId, name, sets:[{setId,weight,reps}]}]
+let _sessionClientId = null; // セッション記録中のクライアントID（前回データ参照用）
+let _prevMaxWeights  = {};   // { 種目名: 前回最大重量 }
 let _histShowCounts  = {}; // { clientId: { sess: N, body: N } }
 
 const VIEWS = ['clients','add-client','client-detail','session','body-record','graph','settings'];
@@ -1910,21 +2030,43 @@ function renderClientList() {
   if (!allClients.length) {
     dashEl.style.display = 'none';
     el.innerHTML = `
-      <div class="card" style="text-align:center;padding:28px 20px;">
-        <div style="font-size:48px;margin-bottom:14px;">🏋️</div>
-        <div style="font-size:18px;font-weight:900;margin-bottom:8px;">FitCoach Pro へようこそ</div>
-        <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:20px;">
-          クライアントを追加して<br>セッション・体測定を記録しよう
+      <div style="background:linear-gradient(135deg,rgba(0,122,255,.1),rgba(0,200,255,.05));border:1px solid rgba(0,122,255,.2);border-radius:20px;padding:28px 20px;margin-bottom:12px;text-align:center;">
+        <div style="font-size:52px;margin-bottom:12px;">🏋️</div>
+        <div style="font-size:20px;font-weight:900;margin-bottom:8px;letter-spacing:-.3px;">FitCoach Pro へようこそ</div>
+        <div style="font-size:13px;color:var(--sub);line-height:1.8;margin-bottom:22px;">
+          クライアントの成果を数字で証明する。<br>まず最初のクライアントを追加しましょう。
         </div>
-        <button class="btn btn-primary" onclick="openAddClient(null)">＋ 最初のクライアントを追加</button>
-        <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);text-align:left;">
-          <div style="font-size:10px;font-weight:800;color:var(--sub);text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px;">使い方</div>
-          <div style="font-size:12px;color:var(--sub);line-height:2;">
-            <div>① クライアントを追加 (＋ボタン)</div>
-            <div>② 詳細画面でセッション・体重を記録</div>
-            <div>③ グラフで進捗を確認</div>
+        <button class="btn btn-primary" style="font-size:15px;padding:17px;" onclick="openAddClient(null)">＋ 最初のクライアントを追加</button>
+        <div style="font-size:11px;color:var(--sub);margin-top:10px;font-weight:700;">所要時間: 約1分</div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:10px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;">3ステップではじめる</div>
+        <div class="step-guide-item">
+          <div class="step-num active">1</div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">クライアントを追加</div>
+            <div style="font-size:11px;color:var(--sub);margin-top:3px;line-height:1.6;">名前・目標・開始日を入力するだけ。1分でセットアップ完了。</div>
           </div>
         </div>
+        <div class="step-guide-item dim">
+          <div class="step-num inactive">2</div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">セッション・体重を記録</div>
+            <div style="font-size:11px;color:var(--sub);margin-top:3px;line-height:1.6;">種目・重量・回数を記録。次回は前回データが自動入力されます。</div>
+          </div>
+        </div>
+        <div class="step-guide-item dim">
+          <div class="step-num inactive">3</div>
+          <div>
+            <div style="font-size:13px;font-weight:800;color:var(--text);">進捗レポートをクライアントに渡す</div>
+            <div style="font-size:11px;color:var(--sub);margin-top:3px;line-height:1.6;">体重変化・PR・セッション履歴が1枚のレポートに。継続率が上がります。</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-top:4px;">
+        <button onclick="loadDemoData()" style="background:transparent;border:none;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;padding:10px;letter-spacing:.03em;">🎮 まずデモデータで試してみる</button>
       </div>`;
     return;
   }
@@ -1962,14 +2104,33 @@ function renderClientList() {
       <div class="dash-stat-label">要フォロー</div>
     </div>`;
 
-  el.innerHTML = clients.map(c => {
+  // トレーナー名未設定 nudge
+  const settings = loadObj(K.settings);
+  const nudgeEl = document.getElementById('trainer-nudge');
+  if (!settings.name && nudgeEl) {
+    nudgeEl.style.display = 'flex';
+  } else if (nudgeEl) {
+    nudgeEl.style.display = 'none';
+  }
+
+  el.innerHTML = clients.map((c, idx) => {
     const cSessions  = sessions.filter(s => s.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date));
     const sessCount  = cSessions.length;
     const lastSess   = cSessions[0];
     const latestBody = bodies.filter(b => b.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date))[0];
     const initial    = (c.name || '?')[0].toUpperCase();
     const genderLabel = c.gender === 'male' ? '男性' : c.gender === 'female' ? '女性' : 'その他';
-    const meta = [c.age ? c.age + '歳' : null, genderLabel, latestBody ? latestBody.weight + 'kg' : null].filter(Boolean).join(' · ');
+    // 体重変化表示
+    const prevBody2 = bodies.filter(b => b.clientId === c.id).sort((a,b) => b.date.localeCompare(a.date))[1];
+    let weightMeta = latestBody ? latestBody.weight + 'kg' : null;
+    if (latestBody && prevBody2) {
+      const diff2 = latestBody.weight - prevBody2.weight;
+      const isBulk2 = c.goal === '増量';
+      const sign2 = diff2 > 0 ? '▲' : diff2 < 0 ? '▼' : '±';
+      const color2 = diff2 === 0 ? '' : ((diff2 > 0) === isBulk2 ? '#34C759' : '#FF3B30');
+      weightMeta = `${latestBody.weight}kg <span style="color:${color2};font-size:10px;font-weight:800;">${sign2}${Math.abs(diff2).toFixed(1)}</span>`;
+    }
+    const meta = [c.age ? c.age + '歳' : null, genderLabel, weightMeta].filter(Boolean).join(' · ');
 
     let daysBadge = '';
     if (lastSess) {
@@ -1996,11 +2157,11 @@ function renderClientList() {
     }
 
     return `
-      <div class="client-card" onclick="openClientDetail('${c.id}')">
+      <div class="client-card" onclick="openClientDetail('${c.id}')" style="animation:cardIn .22s ease-out both;animation-delay:${Math.min(idx * 40, 200)}ms;">
         <div class="client-avatar">${esc(initial)}</div>
         <div class="client-info">
           <div class="client-name">${esc(c.name)}</div>
-          <div class="client-meta">${esc(meta)}</div>
+          <div class="client-meta">${meta}</div>
           <div><span class="goal-badge goal-${c.goal}">${esc(c.goal)}</span></div>
           ${nextSessBadge}
         </div>
@@ -2268,8 +2429,35 @@ function renderClientDetail(clientId) {
         <button class="btn-sm btn-sm-blue" style="flex:1;" onclick="openGraphForClient('${c.id}')">📊 グラフを見る</button>
         <button class="btn-sm" style="background:rgba(255,59,48,.08);color:var(--red);flex:1;" onclick="deleteClient('${c.id}')">🗑️ 削除</button>
       </div>
-      <button class="report-btn" onclick="generateReport('${c.id}')">📄 進捗レポート生成${isPro ? '' : ' (Pro)'}</button>
-      <button class="report-btn" style="margin-top:6px;background:linear-gradient(135deg,rgba(52,199,89,.15),rgba(0,200,128,.1));border-color:rgba(52,199,89,.3);color:var(--green);" onclick="shareProgress('${c.id}')">📤 進捗をシェア</button>
+    </div>
+
+    ${sessions.length >= 2 && bodies.length >= 1 ? `
+    <div class="report-highlight">
+      <div class="rh-icon">📄</div>
+      <div class="rh-body">
+        <div class="rh-title">進捗レポートを生成</div>
+        <div class="rh-desc">体重変化・PR・セッション履歴を<br>1枚のレポートにまとめてクライアントに渡せます</div>
+      </div>
+      <button class="rh-btn" onclick="${isPro ? `generateReport('${c.id}')` : 'showUpgrade()'}">
+        ${isPro ? '生成' : '⭐ Pro'}
+      </button>
+    </div>` : `
+    <div class="rp-checklist">
+      <div class="rp-header">📄 進捗レポートまであと${(sessions.length >= 2 ? 0 : 1) + (bodies.length >= 1 ? 0 : 1)}ステップ</div>
+      <div class="rp-item" ${sessions.length < 2 ? `onclick="openSessionForClient('${c.id}')" style="cursor:pointer;"` : ''}>
+        ${sessions.length >= 2
+          ? `<span class="rp-check-done">✅</span><span class="rp-label done">セッションを2回以上記録</span><span class="rp-count">${sessions.length}回 完了</span>`
+          : `<span class="rp-check-todo"></span><span class="rp-label">セッションを2回以上記録</span><span class="rp-count">${sessions.length}/2</span><span class="rp-action">→</span>`}
+      </div>
+      <div class="rp-item" ${bodies.length === 0 ? `onclick="openBodyForClient('${c.id}')" style="cursor:pointer;"` : ''}>
+        ${bodies.length >= 1
+          ? `<span class="rp-check-done">✅</span><span class="rp-label done">体測定を記録</span><span class="rp-count">完了</span>`
+          : `<span class="rp-check-todo"></span><span class="rp-label">体測定を1回記録</span><span class="rp-count">0/1</span><span class="rp-action">→</span>`}
+      </div>
+    </div>`}
+
+    <div style="margin-bottom:8px;">
+      <button class="report-btn" style="background:linear-gradient(135deg,rgba(52,199,89,.15),rgba(0,200,128,.1));border-color:rgba(52,199,89,.3);color:var(--green);" onclick="shareProgress('${c.id}')">📤 進捗をシェア</button>
     </div>
 
     ${latestBody ? `
@@ -2284,14 +2472,14 @@ function renderClientDetail(clientId) {
       <div class="card-label">Session History</div>
       <div class="glow-line"></div>
       ${sessHTML}
-      ${sessions.length ? `<button class="btn-sm btn-sm-blue" style="width:100%;margin-top:10px;padding:11px;" onclick="openSessionForClient('${c.id}')">＋ セッションを記録</button>` : ''}
+      <button class="btn-sm btn-sm-blue" style="width:100%;margin-top:10px;padding:11px;" onclick="openSessionForClient('${c.id}')">＋ セッションを記録</button>
     </div>
 
     <div class="card">
       <div class="card-label" style="color:var(--amber);">Body Measurement History</div>
       <div class="glow-line" style="background: linear-gradient(90deg, transparent, rgba(255,149,0,.2) 50%, transparent);"></div>
       ${bodyHTML}
-      ${bodies.length ? `<button class="btn-sm btn-sm-green" style="width:100%;margin-top:10px;padding:11px;" onclick="openBodyForClient('${c.id}')">＋ 体測定を記録</button>` : ''}
+      <button class="btn-sm btn-sm-green" style="width:100%;margin-top:10px;padding:11px;" onclick="openBodyForClient('${c.id}')">＋ 体測定を記録</button>
     </div>
 
     <div style="margin-bottom:12px;">
@@ -2357,12 +2545,25 @@ function initSessionForm(clientId) {
   renderExEntries();
 }
 
+function buildPrevMaxWeights(clientId) {
+  _sessionClientId = clientId;
+  _prevMaxWeights  = {};
+  const allSess = load(K.sessions).filter(s => s.clientId === clientId);
+  allSess.forEach(s => (s.exercises||[]).forEach(ex => {
+    const maxW = Math.max(...(ex.sets||[]).map(st => st.weight || 0), 0);
+    if (!maxW) return;
+    if (!_prevMaxWeights[ex.name] || maxW > _prevMaxWeights[ex.name]) {
+      _prevMaxWeights[ex.name] = maxW;
+    }
+  }));
+}
+
 function openSessionForClient(clientId) {
   initSessionForm(clientId);
+  buildPrevMaxWeights(clientId);
   // 前回セッションを自動入力
-  const lastSession = load(K.sessions)
-    .filter(s => s.clientId === clientId)
-    .sort((a,b) => b.date.localeCompare(a.date))[0];
+  const clientSessions = load(K.sessions).filter(s => s.clientId === clientId);
+  const lastSession = clientSessions.sort((a,b) => b.date.localeCompare(a.date))[0];
   if (lastSession && lastSession.exercises?.length) {
     sessionExercises = lastSession.exercises.map(ex => ({
       exId: uid(), name: ex.name,
@@ -2371,6 +2572,13 @@ function openSessionForClient(clientId) {
     renderExEntries();
     const hint = document.getElementById('autofill-hint');
     if (hint) hint.style.display = 'block';
+  }
+  // セッション回数バッジ
+  const badge = document.getElementById('sess-count-badge');
+  if (badge) {
+    const n = clientSessions.length + 1;
+    badge.textContent = `${n}回目のセッション`;
+    badge.style.display = 'inline-flex';
   }
   navTo('session');
 }
@@ -2396,6 +2604,8 @@ function editSession(sessionId) {
   banner.style.display = 'block';
   document.getElementById('sess-save-btn').textContent = '✓ 更新する';
   document.getElementById('sess-cancel-btn').style.display = 'block';
+  const badge = document.getElementById('sess-count-badge');
+  if (badge) badge.style.display = 'none';
   navTo('session');
 }
 
@@ -2411,10 +2621,17 @@ function onSessClientChange() {
   if (editingSessionId) return; // 編集中はオートフィルしない
   const clientId = document.getElementById('sess-client').value;
   if (!clientId) return;
-  const lastSession = load(K.sessions)
-    .filter(s => s.clientId === clientId)
-    .sort((a,b) => b.date.localeCompare(a.date))[0];
+  buildPrevMaxWeights(clientId);
+  const clientSessions = load(K.sessions).filter(s => s.clientId === clientId);
+  const lastSession = clientSessions.sort((a,b) => b.date.localeCompare(a.date))[0];
   const hint = document.getElementById('autofill-hint');
+  // セッション回数バッジ更新
+  const badge = document.getElementById('sess-count-badge');
+  if (badge) {
+    const n = clientSessions.length + 1;
+    badge.textContent = `${n}回目のセッション`;
+    badge.style.display = 'inline-flex';
+  }
   if (lastSession && lastSession.exercises?.length) {
     sessionExercises = lastSession.exercises.map(ex => ({
       exId: uid(), name: ex.name,
@@ -2470,46 +2687,84 @@ function syncExerciseData() {
 function renderExEntries() {
   const container = document.getElementById('ex-entries');
   if (!container) return;
-  container.innerHTML = sessionExercises.map((ex, idx) => `
+  container.innerHTML = sessionExercises.map((ex, idx) => {
+    const prevMax = _prevMaxWeights[ex.name];
+    const prevHint = prevMax ? `<span style="font-size:10px;color:var(--sub);font-weight:700;margin-left:8px;">PR: ${prevMax}kg</span>` : '';
+    return `
     <div class="ex-entry">
       <div class="ex-entry-header">
-        <input type="text" id="ex-name-${ex.exId}"
-          style="background:transparent;border:none;border-bottom:1.5px solid var(--border);border-radius:0;padding:4px 0;font-size:15px;font-weight:800;color:var(--text);outline:none;width:calc(100% - 80px);"
-          placeholder="種目名を入力" value="${esc(ex.name)}"
-          list="ex-datalist"
-          onfocus="this.style.borderBottomColor='var(--accent)'"
-          onblur="this.style.borderBottomColor='var(--border)'">
-        <button style="background:rgba(255,59,48,.08);border:1px solid rgba(255,59,48,.18);color:var(--red);font-size:11px;padding:5px 10px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit;" onclick="removeExercise('${ex.exId}')">削除</button>
+        <div style="flex:1;min-width:0;">
+          <input type="text" id="ex-name-${ex.exId}"
+            style="background:transparent;border:none;border-bottom:1.5px solid var(--border);border-radius:0;padding:4px 0;font-size:15px;font-weight:800;color:var(--text);outline:none;width:100%;"
+            placeholder="種目名を入力" value="${esc(ex.name)}"
+            list="ex-datalist"
+            onfocus="this.style.borderBottomColor='var(--accent)'"
+            onblur="this.style.borderBottomColor='var(--border)';syncExerciseData();renderExEntries();">
+          ${prevHint ? `<div style="margin-top:3px;">${prevHint}</div>` : ''}
+        </div>
+        <button style="background:rgba(255,59,48,.08);border:1px solid rgba(255,59,48,.18);color:var(--red);font-size:11px;padding:5px 10px;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;margin-left:8px;" onclick="removeExercise('${ex.exId}')">削除</button>
       </div>
       <div class="set-header">
-        <span>SET</span><span>重量 kg</span><span>回数</span><span></span>
+        <span>SET</span><span style="padding-left:10px;">重量 kg</span><span>回数</span><span></span>
       </div>
       ${ex.sets.map((st, si) => `
         <div class="set-row">
           <div class="set-num">${si + 1}</div>
-          <input class="set-input" type="number" id="w-${st.setId}" value="${st.weight||''}" placeholder="0" min="0" step="0.5" inputmode="decimal">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button class="set-adj-btn" onclick="syncExerciseData();adjustWeight('${st.setId}',-2.5)">−</button>
+            <input class="set-input" type="number" id="w-${st.setId}" value="${st.weight||''}" placeholder="0" min="0" step="0.5" inputmode="decimal">
+            <button class="set-adj-btn" onclick="syncExerciseData();adjustWeight('${st.setId}',2.5)">＋</button>
+          </div>
           <input class="set-input reps" type="number" id="r-${st.setId}" value="${st.reps||''}" placeholder="10" min="1" inputmode="decimal">
           <button class="set-del" onclick="syncExerciseData();removeSet('${ex.exId}','${st.setId}')">×</button>
         </div>`).join('')}
-      <button class="add-set-btn" onclick="syncExerciseData();addSet('${ex.exId}')">＋ セットを追加</button>
-    </div>`).join('');
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button class="add-set-btn" style="flex:1;" onclick="syncExerciseData();addSet('${ex.exId}')">＋ セットを追加</button>
+        <button class="add-set-btn" style="flex:none;padding:9px 14px;font-size:11px;background:rgba(52,199,89,.06);border-color:rgba(52,199,89,.25);color:var(--green);" onclick="syncExerciseData();copyLastSet('${ex.exId}')">前のセットをコピー</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function adjustWeight(setId, delta) {
+  sessionExercises.forEach(ex => {
+    ex.sets.forEach(st => {
+      if (st.setId === setId) {
+        st.weight = Math.max(0, parseFloat((st.weight || 0) + delta).toFixed(1) * 1);
+      }
+    });
+  });
+  renderExEntries();
+}
+
+function copyLastSet(exId) {
+  const ex = sessionExercises.find(e => e.exId === exId);
+  if (!ex || !ex.sets.length) return;
+  const last = ex.sets[ex.sets.length - 1];
+  ex.sets.push({ setId: uid(), weight: last.weight, reps: last.reps });
+  renderExEntries();
 }
 
 function saveSession() {
+  const saveBtn = document.getElementById('sess-save-btn');
+  if (saveBtn.disabled) return;
+  saveBtn.disabled = true;
+  setTimeout(() => { if (saveBtn) saveBtn.disabled = false; }, 2000);
+
   syncExerciseData();
   const clientId = document.getElementById('sess-client').value;
   const date     = document.getElementById('sess-date').value;
   const duration = parseInt(document.getElementById('sess-duration').value) || null;
   const notes    = document.getElementById('sess-notes').value.trim();
 
-  if (!clientId) { toast('❌ クライアントを選択してください'); return; }
-  if (!date)     { toast('❌ 日付を入力してください'); return; }
+  if (!clientId) { saveBtn.disabled = false; toast('❌ クライアントを選択してください'); return; }
+  if (!date)     { saveBtn.disabled = false; toast('❌ 日付を入力してください'); return; }
 
   const exercises = sessionExercises
     .filter(ex => ex.name.trim())
     .map(ex => ({ name: ex.name.trim(), sets: ex.sets.filter(s => s.reps > 0) }));
 
-  if (!exercises.length) { toast('❌ 種目を1つ以上入力してください'); return; }
+  if (!exercises.length) { saveBtn.disabled = false; toast('❌ 種目を1つ以上入力してください'); return; }
 
   const arr = load(K.sessions);
   if (editingSessionId) {
@@ -2662,14 +2917,19 @@ function cancelBodyEdit() {
 }
 
 function saveBodyRecord() {
+  const saveBtn = document.getElementById('body-save-btn');
+  if (saveBtn.disabled) return;
+  saveBtn.disabled = true;
+  setTimeout(() => { if (saveBtn) saveBtn.disabled = false; }, 2000);
+
   const clientId = document.getElementById('body-client').value;
   const date     = document.getElementById('body-date').value;
   const weight   = parseFloat(document.getElementById('body-weight').value);
   const fatPct   = parseFloat(document.getElementById('body-fat').value);
 
-  if (!clientId) { toast('❌ クライアントを選択してください'); return; }
-  if (!date)     { toast('❌ 日付を入力してください'); return; }
-  if (isNaN(weight) || weight <= 0) { toast('❌ 体重を入力してください'); return; }
+  if (!clientId) { saveBtn.disabled = false; toast('❌ クライアントを選択してください'); return; }
+  if (!date)     { saveBtn.disabled = false; toast('❌ 日付を入力してください'); return; }
+  if (isNaN(weight) || weight <= 0) { saveBtn.disabled = false; toast('❌ 体重を入力してください'); return; }
 
   const fat = isNaN(fatPct) ? null : fatPct;
   const getNum = id => { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; };
@@ -2943,6 +3203,8 @@ function saveTrainerProfile() {
   const gym  = document.getElementById('trainer-gym').value.trim();
   saveObj(K.settings, { name, gym });
   toast('✅ プロフィールを保存しました');
+  const nudge = document.getElementById('trainer-nudge');
+  if (nudge && name) nudge.style.display = 'none';
 }
 
 /* ─────────────────────────────────────────
@@ -2952,16 +3214,16 @@ function exportCSV() {
   const clients  = load(K.clients);
   const sessions = load(K.sessions);
   const bodies   = load(K.body);
-  const rows = [['クライアント名','日付','種別','内容','体重(kg)','体脂肪率(%)','セット数','メモ']];
+  const rows = [['クライアント名','日付','種別','内容','体重(kg)','体脂肪率(%)','胸囲(cm)','腹囲(cm)','臀囲(cm)','腕囲(cm)','太腿囲(cm)','セット数','メモ']];
 
   clients.forEach(c => {
     sessions.filter(s => s.clientId === c.id).forEach(s => {
       const exNames  = (s.exercises||[]).map(e=>e.name).join(' / ');
       const setCount = (s.exercises||[]).reduce((n,e)=>n+(e.sets||[]).length,0);
-      rows.push([c.name, s.date, 'セッション', exNames, '', '', setCount, s.notes||'']);
+      rows.push([c.name, s.date, 'セッション', exNames, '', '', '', '', '', '', '', setCount, s.notes||'']);
     });
     bodies.filter(b => b.clientId === c.id).forEach(b => {
-      rows.push([c.name, b.date, '体測定', '', b.weight||'', b.fatPct||'', '', '']);
+      rows.push([c.name, b.date, '体測定', '', b.weight||'', b.fatPct??'', b.chest??'', b.waist??'', b.hip??'', b.arm??'', b.thigh??'', '', '']);
     });
   });
 
@@ -3109,12 +3371,26 @@ function startUpgrade() {
   window.open(url, '_blank');
   closeUpgradeModal();
   toast('💳 Stripeの決済ページを開きました');
-  // 決済完了後にFirestoreが更新されたら自動検知 (15秒×3回ポーリング)
+  // 決済完了後にFirestoreが更新されたら自動検知
+  // Step1: ログイン状態を1秒間隔で最大10秒待機
+  // Step2: ログイン確認後、Proステータスを3秒間隔で最大30秒ポーリング
   let n = 0;
-  const poll = setInterval(async () => {
-    if (fbAuth.currentUser) await checkProStatus(fbAuth.currentUser.uid);
-    if (isPro || ++n >= 3) clearInterval(poll);
-  }, 15000);
+  const pollAuth = setInterval(() => {
+    if (fbAuth && fbAuth.currentUser) {
+      clearInterval(pollAuth);
+      let m = 0;
+      const pollPro = setInterval(async () => {
+        await checkProStatus(fbAuth.currentUser.uid);
+        if (isPro || ++m >= 10) {
+          clearInterval(pollPro);
+          if (!isPro) toast('💡 反映に時間がかかっています。しばらく後に再度ご確認ください。');
+        }
+      }, 3000);
+    } else if (++n >= 10) {
+      clearInterval(pollAuth);
+      toast('💡 ログインしてProステータスを確認してください');
+    }
+  }, 1000);
 }
 
 async function refreshProStatus() {
@@ -3270,10 +3546,12 @@ function generateReport(clientId) {
     <div class="stat-val">${latestBody.weight}</div>
     <div class="stat-lbl">現在の体重 kg</div>
   </div>` : ''}
-  ${weightChange !== null ? `<div class="stat ${parseFloat(weightChange) < 0 ? 'green' : 'red'}">
-    <div class="stat-val">${sign(weightChange)}</div>
-    <div class="stat-lbl">体重変化 kg</div>
-  </div>` : ''}
+  ${weightChange !== null ? (() => {
+    const isBulk = c.goal === '増量';
+    const wDiff  = parseFloat(weightChange);
+    const wColor = wDiff === 0 ? '' : ((wDiff > 0) === isBulk ? 'green' : 'red');
+    return `<div class="stat ${wColor}"><div class="stat-val">${sign(weightChange)}</div><div class="stat-lbl">体重変化 kg</div></div>`;
+  })() : ''}
   ${fatChange !== null ? `<div class="stat ${parseFloat(fatChange) < 0 ? 'green' : 'red'}">
     <div class="stat-val">${sign(fatChange)}%</div>
     <div class="stat-lbl">体脂肪変化</div>
@@ -3302,7 +3580,7 @@ ${sessions.length ? `
 
 ${c.notes ? `<h2>メモ</h2><p style="font-size:13px;color:#555;line-height:1.7;">${esc(c.notes)}</p>` : ''}
 
-<div class="footer">PT Manager で生成 · ${reportDate}</div>
+<div class="footer">FitCoach Pro で生成 · ${reportDate}</div>
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=800,height=900');
@@ -3350,24 +3628,25 @@ function shareProgress(clientId) {
   const thisMonth = today().slice(0, 7);
   const monthSessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
 
-  const text = `【${c.name}さんの進捗報告 💪】
+  const textForShare = `【${c.name}さんの進捗報告 💪】
 ${elapsedDays !== null ? `開始から${elapsedDays}日経過` : ''}
 ${weightLine}
 今月セッション数: ${monthSessions}回
-担当: ${trainerName}
-#FitCoachPro #パーソナルトレーニング`;
+担当: ${trainerName}`;
+
+  const textForCopy = textForShare + `\n#FitCoachPro #パーソナルトレーニング`;
 
   if (navigator.share) {
-    navigator.share({ text: text.trim() })
+    navigator.share({ text: textForShare.trim() })
       .then(() => toast('📤 シェアしました！'))
       .catch(() => {});
   } else {
-    navigator.clipboard.writeText(text.trim())
+    navigator.clipboard.writeText(textForCopy.trim())
       .then(() => toast('📋 クリップボードにコピーしました！'))
       .catch(() => {
         // フォールバック: テキストエリアでコピー
         const ta = document.createElement('textarea');
-        ta.value = text.trim();
+        ta.value = textForCopy.trim();
         ta.style.position = 'fixed'; ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select(); document.execCommand('copy');
@@ -3780,9 +4059,7 @@ function closeUserMenu(e) {
 
   function maybeShowPwaBanner() {
     if (localStorage.getItem('fc_pwa_dismissed')) return;
-    // 訪問回数カウント
-    const visits = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
-    localStorage.setItem('fc_visit_count', visits);
+    const visits = parseInt(localStorage.getItem('fc_visit_count') || '0');
     if (visits < 3) return;
 
     const bannerEl = document.getElementById('pwa-install-banner');
@@ -3815,9 +4092,9 @@ function closeUserMenu(e) {
     });
   }
 
-  // 訪問回数を記録（beforeinstallpromptが来ない場合も）
-  const visits = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
-  localStorage.setItem('fc_visit_count', visits);
+  // 訪問回数を記録（ページロード時に1回だけ）
+  const _v = parseInt(localStorage.getItem('fc_visit_count') || '0') + 1;
+  localStorage.setItem('fc_visit_count', _v);
 })();
 </script>
 </body>
