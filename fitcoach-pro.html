@@ -1836,7 +1836,7 @@ const PRO_ANNUAL_PAYMENT_URL = 'ANNUAL_PLAN_URL_PLACEHOLDER'; // Stripeで年払
 let isPro = false;
 
 const FREE_LIMIT = 3;
-const K = { clients: 'pt_clients', sessions: 'pt_sessions', body: 'pt_body', settings: 'pt_settings', templates: 'pt_templates' };
+const K = { clients: 'pt_clients', sessions: 'pt_sessions', body: 'pt_body', settings: 'pt_settings', templates: 'pt_templates', clientViews: 'pt_client_views' };
 
 function load(k)    { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } }
 function loadObj(k) { try { return JSON.parse(localStorage.getItem(k)) || {}; } catch { return {}; } }
@@ -3722,86 +3722,87 @@ ${c.notes ? `<h2>メモ</h2><p style="font-size:13px;color:#555;line-height:1.7;
 }
 
 /* ─────────────────────────────────────────
+   CLIENT DATA HELPERS — 共有ユーティリティ
+───────────────────────────────────────── */
+function computePRMap(sessions) {
+  const prMap = {};
+  sessions.forEach(s => (s.exercises||[]).forEach(ex => {
+    let maxW = 0;
+    for (const st of (ex.sets||[])) { if (st.weight > 0 && st.weight > maxW) maxW = st.weight; }
+    if (!maxW) return;
+    if (!prMap[ex.name] || maxW > prMap[ex.name]) prMap[ex.name] = maxW;
+  }));
+  return prMap;
+}
+
+function computeClientSnapshot(clientId) {
+  const c        = load(K.clients).find(c => c.id === clientId);
+  if (!c) return null;
+  const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
+  const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
+  const settings = loadObj(K.settings);
+
+  const firstBody  = bodies[0];
+  const latestBody = bodies[bodies.length - 1];
+  const startDate  = c.startDate ? new Date(c.startDate + 'T12:00:00') : null;
+  const thisMonth  = today().slice(0, 7);
+  const topPRs     = Object.entries(computePRMap(sessions)).sort((a,b) => b[1]-a[1]).slice(0,5).map(([name,weight]) => ({name,weight}));
+
+  return {
+    c, sessions, bodies, settings,
+    trainerName:   settings.name || 'パーソナルトレーナー',
+    gymName:       settings.gym  || '',
+    elapsedDays:   startDate ? Math.floor((Date.now() - startDate.getTime()) / 86400000) : null,
+    weightStart:   firstBody?.weight  ?? null,
+    weightLatest:  latestBody?.weight ?? null,
+    weightChange:  (firstBody && latestBody && firstBody !== latestBody)
+      ? parseFloat((latestBody.weight - firstBody.weight).toFixed(1)) : null,
+    fatChange:     (firstBody?.fatPct != null && latestBody?.fatPct != null && firstBody !== latestBody)
+      ? parseFloat((latestBody.fatPct - firstBody.fatPct).toFixed(1)) : null,
+    monthSessions: sessions.filter(s => s.date.startsWith(thisMonth)).length,
+    topPRs,
+  };
+}
+
+/* ─────────────────────────────────────────
    SHARE PROGRESS — 公開URLを生成してシェア
 ───────────────────────────────────────── */
 async function shareProgress(clientId) {
   if (!isPro) { showUpgrade(); return; }
-  const c = load(K.clients).find(c => c.id === clientId);
-  if (!c) return;
-  const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
-  const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
-  const settings = loadObj(K.settings);
-  const trainerName = settings.name || 'パーソナルトレーナー';
-  const gymName     = settings.gym  || '';
+  const snap = computeClientSnapshot(clientId);
+  if (!snap) return;
+  const { c, sessions, trainerName, gymName, elapsedDays, weightStart, weightLatest, weightChange, fatChange, monthSessions, topPRs } = snap;
 
-  // 開始からの日数
-  const startDate   = c.startDate ? new Date(c.startDate + 'T12:00:00') : null;
-  const elapsedDays = startDate ? Math.floor((Date.now() - startDate.getTime()) / 86400000) : null;
-
-  // 体重・体脂肪変化
-  const firstBody  = bodies[0];
-  const latestBody = bodies[bodies.length - 1];
-  const weightStart  = firstBody  ? firstBody.weight  : null;
-  const weightLatest = latestBody ? latestBody.weight  : null;
-  const weightChange = (weightStart && weightLatest && firstBody !== latestBody)
-    ? parseFloat((weightLatest - weightStart).toFixed(1)) : null;
-  const fatChange = (firstBody?.fatPct != null && latestBody?.fatPct != null && firstBody !== latestBody)
-    ? parseFloat((latestBody.fatPct - firstBody.fatPct).toFixed(1)) : null;
-
-  // 今月セッション数
-  const thisMonth    = today().slice(0, 7);
-  const monthSessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
-
-  // PRs TOP5
-  const prMap = {};
-  sessions.forEach(s => (s.exercises||[]).forEach(ex => {
-    const maxW = Math.max(...(ex.sets||[]).filter(st => st.weight > 0).map(st => st.weight), 0);
-    if (!maxW) return;
-    if (!prMap[ex.name] || maxW > prMap[ex.name]) prMap[ex.name] = maxW;
-  }));
-  const topPRs = Object.entries(prMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([name,weight]) => ({name,weight}));
-
-  // Firestoreが使える場合は公開URLを生成
   if (fbDb) {
     toast('🔗 リンクを生成中...');
     try {
-      const shareId = uid();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後
+      const shareId   = uid();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       await fbDb.collection('publicShares').doc(shareId).set({
-        trainerUid:    fbAuth?.currentUser?.uid || '',
-        trainerName,
-        gymName,
+        trainerUid: fbAuth?.currentUser?.uid || '',
+        trainerName, gymName,
         clientName:    c.name,
         clientGoal:    c.goal || '',
-        elapsedDays,
-        weightStart,
-        weightLatest,
-        weightChange,
-        fatChange,
+        elapsedDays, weightStart, weightLatest, weightChange, fatChange,
         totalSessions: sessions.length,
-        monthSessions,
-        topPRs,
-        createdAt:  firebase.firestore.FieldValue.serverTimestamp(),
-        expiresAt:  firebase.firestore.Timestamp.fromDate(expiresAt)
+        monthSessions, topPRs,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt)
       });
-      const shareUrl = `https://fitcoach-pro.pages.dev/share.html?id=${shareId}`;
-      copyToClipboard(shareUrl);
+      copyToClipboard(`https://fitcoach-pro.pages.dev/share.html?id=${shareId}`);
       toast('🔗 共有リンクをコピーしました！LINEやSNSで送れます');
       return;
     } catch(e) {
       console.error('shareProgress:', e);
-      // fallthrough to text share
     }
   }
 
-  // Fistore未使用時のフォールバック（テキストシェア）
-  const sign = v => v > 0 ? '+'+v : v;
+  // フォールバック（テキストシェア）
+  const sign  = v => v > 0 ? '+'+v : v;
   const lines = [`【${c.name}さんの進捗報告 💪】`];
   if (elapsedDays !== null) lines.push(`開始から${elapsedDays}日経過`);
   if (weightChange !== null) lines.push(`体重: ${weightStart}kg → ${weightLatest}kg（${sign(weightChange)}kg）`);
-  lines.push(`今月セッション数: ${monthSessions}回`);
-  lines.push(`担当: ${trainerName}`);
-  lines.push(`#FitCoachPro #パーソナルトレーニング`);
+  lines.push(`今月セッション数: ${monthSessions}回`, `担当: ${trainerName}`, `#FitCoachPro #パーソナルトレーニング`);
   copyToClipboard(lines.join('\n'));
   toast('📋 クリップボードにコピーしました！');
 }
@@ -3809,10 +3810,17 @@ async function shareProgress(clientId) {
 /* ─────────────────────────────────────────
    CLIENT VIEW — クライアント向けリアルタイムビュー
 ───────────────────────────────────────── */
-const K_CLIENT_VIEWS = 'pt_client_views'; // {clientId: viewId} のマップ
-
 function getClientViewMap() {
-  try { return JSON.parse(localStorage.getItem(K_CLIENT_VIEWS)) || {}; } catch { return {}; }
+  if (clientViewMapCache === null) {
+    try { clientViewMapCache = JSON.parse(localStorage.getItem(K.clientViews)) || {}; }
+    catch { clientViewMapCache = {}; }
+  }
+  return clientViewMapCache;
+}
+
+function saveClientViewMap(map) {
+  clientViewMapCache = map;
+  localStorage.setItem(K.clientViews, JSON.stringify(map));
 }
 
 async function generateClientView(clientId) {
@@ -3822,25 +3830,26 @@ async function generateClientView(clientId) {
   const viewMap = getClientViewMap();
   let viewId = viewMap[clientId];
 
-  // 既存のビューがあれば再利用
   if (viewId) {
-    const viewUrl = `https://fitcoach-pro.pages.dev/client-view.html?id=${viewId}`;
-    copyToClipboard(viewUrl);
+    copyToClipboard(`https://fitcoach-pro.pages.dev/client-view.html?id=${viewId}`);
     toast('🔗 クライアント用リンクをコピーしました！');
     return;
   }
 
+  // 二重呼び出し防止: 先にIDを確保してからFirestoreへ書き込む
+  viewId = uid();
+  viewMap[clientId] = viewId;
+  saveClientViewMap(viewMap);
+
   toast('🔗 クライアント用ビューを作成中...');
   try {
-    viewId = uid();
     await syncClientViewData(clientId, viewId);
-    // マップに保存
-    viewMap[clientId] = viewId;
-    localStorage.setItem(K_CLIENT_VIEWS, JSON.stringify(viewMap));
-    const viewUrl = `https://fitcoach-pro.pages.dev/client-view.html?id=${viewId}`;
-    copyToClipboard(viewUrl);
+    copyToClipboard(`https://fitcoach-pro.pages.dev/client-view.html?id=${viewId}`);
     toast('🔗 クライアント用リンクをコピーしました！LINEで送れます');
   } catch(e) {
+    // 失敗したらIDを取り消す
+    delete viewMap[clientId];
+    saveClientViewMap(viewMap);
     console.error('generateClientView:', e);
     toast('❌ 作成に失敗しました');
   }
@@ -3848,26 +3857,9 @@ async function generateClientView(clientId) {
 
 async function syncClientViewData(clientId, viewId) {
   if (!fbDb || !fbAuth?.currentUser) return;
-  const c        = load(K.clients).find(c => c.id === clientId);
-  if (!c) return;
-  const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
-  const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
-  const settings = loadObj(K.settings);
-
-  const firstBody  = bodies[0];
-  const latestBody = bodies[bodies.length - 1];
-  const thisMonth  = today().slice(0, 7);
-
-  const prMap = {};
-  sessions.forEach(s => (s.exercises||[]).forEach(ex => {
-    const maxW = Math.max(...(ex.sets||[]).filter(st => st.weight > 0).map(st => st.weight), 0);
-    if (!maxW) return;
-    if (!prMap[ex.name] || maxW > prMap[ex.name]) prMap[ex.name] = maxW;
-  }));
-  const topPRs = Object.entries(prMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([name,weight]) => ({name,weight}));
-
-  const startDate = c.startDate ? new Date(c.startDate + 'T12:00:00') : null;
-  const elapsedDays = startDate ? Math.floor((Date.now() - startDate.getTime()) / 86400000) : null;
+  const snap = computeClientSnapshot(clientId);
+  if (!snap) return;
+  const { c, sessions, bodies, trainerName, gymName, elapsedDays, weightStart, weightLatest, weightChange, fatChange, monthSessions, topPRs } = snap;
 
   await fbDb.collection('clientViews').doc(viewId).set({
     trainerUid:    fbAuth.currentUser.uid,
@@ -3875,26 +3867,17 @@ async function syncClientViewData(clientId, viewId) {
     clientName:    c.name,
     clientGoal:    c.goal || '',
     startDate:     c.startDate || null,
-    elapsedDays,
-    trainerName:   settings.name || 'パーソナルトレーナー',
-    gymName:       settings.gym  || '',
+    elapsedDays,   trainerName, gymName,
     totalSessions: sessions.length,
-    monthSessions: sessions.filter(s => s.date.startsWith(thisMonth)).length,
-    weightStart:   firstBody?.weight  ?? null,
-    weightLatest:  latestBody?.weight ?? null,
-    weightChange:  (firstBody && latestBody && firstBody !== latestBody)
-      ? parseFloat((latestBody.weight - firstBody.weight).toFixed(1)) : null,
-    fatChange:     (firstBody?.fatPct != null && latestBody?.fatPct != null && firstBody !== latestBody)
-      ? parseFloat((latestBody.fatPct - firstBody.fatPct).toFixed(1)) : null,
-    topPRs,
+    monthSessions, weightStart, weightLatest, weightChange, fatChange, topPRs,
     recentSessions: [...sessions].reverse().slice(0, 10).map(s => ({
       date:      s.date,
       duration:  s.duration || null,
-      exercises: (s.exercises||[]).map(ex => ({
-        name: ex.name,
-        sets: (ex.sets||[]).length,
-        maxWeight: Math.max(...(ex.sets||[]).map(st => st.weight||0), 0) || null
-      }))
+      exercises: (s.exercises||[]).map(ex => {
+        let maxW = 0;
+        for (const st of (ex.sets||[])) { if ((st.weight||0) > maxW) maxW = st.weight; }
+        return { name: ex.name, sets: (ex.sets||[]).length, maxWeight: maxW || null };
+      })
     })),
     bodies: bodies.slice(-20).map(b => ({
       date: b.date, weight: b.weight, fatPct: b.fatPct ?? null,
@@ -3902,16 +3885,19 @@ async function syncClientViewData(clientId, viewId) {
       arm: b.arm ?? null, thigh: b.thigh ?? null
     })),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  }, { merge: false });
+  }, { merge: true });
 }
 
-// セッション/体測定保存後に自動同期
-async function syncClientViewIfExists(clientId) {
+// セッション/体測定保存後に自動同期（デバウンス: 1800ms）
+function syncClientViewIfExists(clientId) {
   if (!isPro || !fbDb || !fbAuth?.currentUser) return;
-  const viewMap = getClientViewMap();
-  const viewId  = viewMap[clientId];
-  if (!viewId) return;
-  try { await syncClientViewData(clientId, viewId); } catch(e) { console.error('syncClientView:', e); }
+  if (!getClientViewMap()[clientId]) return;
+  clearTimeout(clientViewSyncTimer);
+  clientViewSyncTimer = setTimeout(async () => {
+    const viewId = getClientViewMap()[clientId];
+    if (!viewId) return;
+    try { await syncClientViewData(clientId, viewId); } catch(e) { console.error('syncClientView:', e); }
+  }, 1800);
 }
 
 function copyToClipboard(text) {
@@ -4119,6 +4105,7 @@ const FIREBASE_CONFIG = {
 };
 
 let fbAuth = null, fbDb = null, syncTimer = null;
+let clientViewMapCache = null, clientViewSyncTimer = null;
 
 function initFirebase() {
   if (FIREBASE_CONFIG.apiKey === 'YOUR_API_KEY') return;
