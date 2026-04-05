@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>トレーナーディレクトリ | FitCoach Pro</title>
+<meta name="description" content="FitCoach Proを使用するパーソナルトレーナーの一覧です。あなたの目標に合ったトレーナーを見つけましょう。">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #007AFF;
+    --green: #34C759;
+    --amber: #FF9500;
+    --bg: #0a0a0a;
+    --card: #1c1c1e;
+    --border: rgba(255,255,255,.08);
+    --text: #ffffff;
+    --sub: rgba(255,255,255,.45);
+  }
+
+  body {
+    font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #007AFF 0%, #00C8FF 100%);
+    padding: 48px 20px 36px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 70% 30%, rgba(255,255,255,.15) 0%, transparent 60%);
+  }
+  .header-logo { font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.7); margin-bottom: 10px; position: relative; }
+  .header-title { font-size: 26px; font-weight: 900; position: relative; margin-bottom: 8px; }
+  .header-sub { font-size: 13px; color: rgba(255,255,255,.8); position: relative; line-height: 1.6; }
+
+  .container { padding: 24px 16px; max-width: 600px; margin: 0 auto; }
+
+  .count-label {
+    font-size: 12px;
+    color: var(--sub);
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .trainer-grid { display: flex; flex-direction: column; gap: 12px; }
+
+  .trainer-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .trainer-icon {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #007AFF, #00C8FF);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .trainer-info { flex: 1; min-width: 0; }
+  .trainer-name { font-size: 16px; font-weight: 800; margin-bottom: 3px; }
+  .trainer-gym  { font-size: 12px; color: var(--sub); margin-bottom: 8px; }
+  .trainer-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .tag-specialty { background: rgba(0,122,255,.15); color: var(--blue); border: 1px solid rgba(0,122,255,.25); }
+  .tag-area      { background: rgba(52,199,89,.12);  color: var(--green); border: 1px solid rgba(52,199,89,.25); }
+  .trainer-contact {
+    margin-top: 10px;
+  }
+  .trainer-contact a {
+    font-size: 12px;
+    color: var(--blue);
+    text-decoration: none;
+    font-weight: 700;
+    word-break: break-all;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--sub);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; }
+
+  .loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 50vh; gap: 14px; color: var(--sub); font-size: 14px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid rgba(255,255,255,.1);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .cta-section {
+    margin-top: 40px;
+    background: linear-gradient(135deg, rgba(0,122,255,.15), rgba(0,200,255,.08));
+    border: 1px solid rgba(0,122,255,.25);
+    border-radius: 20px;
+    padding: 28px 20px;
+    text-align: center;
+  }
+  .cta-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .cta-sub   { font-size: 12px; color: var(--sub); line-height: 1.7; margin-bottom: 18px; }
+  .cta-btn {
+    display: inline-block;
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #007AFF, #00C8FF);
+    color: #fff;
+    border-radius: 14px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    box-shadow: 0 8px 24px rgba(0,122,255,.35);
+  }
+  .back-link {
+    display: block;
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--sub);
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">FitCoach Pro</div>
+  <div class="header-title">トレーナーディレクトリ</div>
+  <div class="header-sub">FitCoach Proを使って成果を数字で証明する<br>パーソナルトレーナーの一覧です。</div>
+</div>
+
+<div class="container">
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <div>トレーナーを読み込み中...</div>
+  </div>
+  <div id="content" style="display:none;"></div>
+</div>
+
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyDCWtx1V9XdPIjfNH24ChEz-B0VaD0iBn4",
+    authDomain:        "pt-manager-57190.firebaseapp.com",
+    projectId:         "pt-manager-57190",
+    storageBucket:     "pt-manager-57190.firebasestorage.app",
+    messagingSenderId: "504138724513",
+    appId:             "1:504138724513:web:f222f564cca5a67bd6ace0"
+  };
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function isValidUrl(s) {
+    try { new URL(s); return true; } catch { return false; }
+  }
+
+  async function main() {
+    try {
+      const snap = await db.collection('trainers').where('listed', '==', true).limit(100).get();
+      const trainers = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => t.name);
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      if (trainers.length === 0) {
+        document.getElementById('content').innerHTML = `
+          <div class="empty">
+            <div class="empty-icon">🔍</div>
+            まだ掲載中のトレーナーがいません。<br>FitCoach Proを使うトレーナーの第一人者になりませんか？
+          </div>
+          ${ctaHTML('トレーナーとして掲載される')}`;
+        return;
+      }
+
+      const cards = trainers.map(t => {
+        const tags = [
+          t.specialty ? `<span class="tag tag-specialty">${esc(t.specialty)}</span>` : '',
+          t.area      ? `<span class="tag tag-area">📍 ${esc(t.area)}</span>` : ''
+        ].filter(Boolean).join('');
+
+        const contact = t.contact && isValidUrl(t.contact)
+          ? `<div class="trainer-contact"><a href="${esc(t.contact)}" target="_blank" rel="noopener">🔗 ${esc(t.contact)}</a></div>`
+          : t.contact ? `<div class="trainer-contact"><span style="font-size:12px;color:var(--sub);">${esc(t.contact)}</span></div>` : '';
+
+        return `
+          <div class="trainer-card">
+            <div class="trainer-icon">💪</div>
+            <div class="trainer-info">
+              <div class="trainer-name">${esc(t.name)}</div>
+              ${t.gym ? `<div class="trainer-gym">${esc(t.gym)}</div>` : ''}
+              ${tags ? `<div class="trainer-tags">${tags}</div>` : ''}
+              ${contact}
+            </div>
+          </div>`;
+      }).join('');
+
+      document.getElementById('content').innerHTML = `
+        <div class="count-label">${trainers.length}名のトレーナーが掲載中</div>
+        <div class="trainer-grid">${cards}</div>
+        ${ctaHTML('あなたもここに掲載されませんか？')}
+        <a href="https://fitcoach-pro.pages.dev" class="back-link">← FitCoach Proに戻る</a>`;
+
+    } catch(e) {
+      console.error(e);
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">⚠️</div>
+          読み込みに失敗しました。ページを再読み込みしてください。
+        </div>`;
+      document.getElementById('content').style.display = 'block';
+    }
+  }
+
+  function ctaHTML(btnText) {
+    return `
+      <div class="cta-section">
+        <div class="cta-title">FitCoach Proを使うトレーナーへ</div>
+        <div class="cta-sub">設定画面からディレクトリへの掲載をオンにするだけで、<br>ここに表示されてクライアント獲得に活用できます。<br>掲載・利用は完全無料。</div>
+        <a href="https://fitcoach-pro.pages.dev" class="cta-btn">${esc(btnText)} →</a>
+      </div>`;
+  }
+
+  main();
+</script>
+</body>
+</html>

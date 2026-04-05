@@ -1595,6 +1595,37 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
     <button class="btn btn-primary" onclick="saveTrainerProfile()">保存</button>
   </div>
 
+  <div class="card" id="settings-directory-card">
+    <div class="card-label">Directory</div>
+    <div class="glow-line"></div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;">
+      <div>
+        <div style="font-size:14px;font-weight:800;">トレーナーディレクトリに掲載</div>
+        <div style="font-size:11px;color:var(--sub);margin-top:4px;line-height:1.6;">掲載されると <a href="https://fitcoach-pro.pages.dev/directory.html" target="_blank" style="color:var(--blue);">fitcoach-pro.pages.dev/directory.html</a> に表示され、クライアント獲得に活用できます。</div>
+      </div>
+      <label style="flex-shrink:0;position:relative;display:inline-block;width:44px;height:26px;">
+        <input type="checkbox" id="directory-listed" style="opacity:0;width:0;height:0;" onchange="saveDirectoryListing()">
+        <span style="position:absolute;inset:0;background:#ccc;border-radius:26px;transition:.3s;cursor:pointer;" id="directory-toggle-track"></span>
+        <span style="position:absolute;left:3px;bottom:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:.3s;" id="directory-toggle-thumb"></span>
+      </label>
+    </div>
+    <div id="directory-extra-fields" style="display:none;">
+      <div class="field">
+        <label>専門分野（任意）</label>
+        <input type="text" id="directory-specialty" placeholder="例: ダイエット・筋肥大・産後ケア">
+      </div>
+      <div class="field">
+        <label>活動エリア（任意）</label>
+        <input type="text" id="directory-area" placeholder="例: 東京・渋谷">
+      </div>
+      <div class="field">
+        <label>連絡先 / SNS URL（任意）</label>
+        <input type="text" id="directory-contact" placeholder="例: https://twitter.com/xxx">
+      </div>
+      <button class="btn btn-primary" onclick="saveDirectoryListing()">ディレクトリ情報を保存</button>
+    </div>
+  </div>
+
   <div class="card">
     <div class="card-label">Data</div>
     <div class="glow-line"></div>
@@ -3196,15 +3227,69 @@ function loadTrainerProfile() {
   const s = loadObj(K.settings);
   document.getElementById('trainer-name').value = s.name || '';
   document.getElementById('trainer-gym').value  = s.gym  || '';
+  // ディレクトリ設定を復元
+  const listed = !!s.directoryListed;
+  const cb = document.getElementById('directory-listed');
+  if (cb) {
+    cb.checked = listed;
+    _updateDirectoryToggleUI(listed);
+    if (listed) {
+      document.getElementById('directory-specialty').value = s.directorySpecialty || '';
+      document.getElementById('directory-area').value      = s.directoryArea      || '';
+      document.getElementById('directory-contact').value   = s.directoryContact   || '';
+    }
+  }
+}
+
+function _updateDirectoryToggleUI(listed) {
+  const track = document.getElementById('directory-toggle-track');
+  const thumb = document.getElementById('directory-toggle-thumb');
+  const extra = document.getElementById('directory-extra-fields');
+  if (!track) return;
+  track.style.background = listed ? 'var(--blue)' : '#ccc';
+  thumb.style.transform  = listed ? 'translateX(18px)' : 'translateX(0)';
+  extra.style.display    = listed ? 'block' : 'none';
 }
 
 function saveTrainerProfile() {
   const name = document.getElementById('trainer-name').value.trim();
   const gym  = document.getElementById('trainer-gym').value.trim();
-  saveObj(K.settings, { name, gym });
+  const s    = loadObj(K.settings);
+  saveObj(K.settings, { ...s, name, gym });
   toast('✅ プロフィールを保存しました');
   const nudge = document.getElementById('trainer-nudge');
   if (nudge && name) nudge.style.display = 'none';
+}
+
+async function saveDirectoryListing() {
+  const listed    = document.getElementById('directory-listed').checked;
+  const specialty = (document.getElementById('directory-specialty')?.value || '').trim();
+  const area      = (document.getElementById('directory-area')?.value      || '').trim();
+  const contact   = (document.getElementById('directory-contact')?.value   || '').trim();
+  _updateDirectoryToggleUI(listed);
+
+  // ローカルに保存
+  const s = loadObj(K.settings);
+  saveObj(K.settings, { ...s, directoryListed: listed, directorySpecialty: specialty, directoryArea: area, directoryContact: contact });
+
+  // Firestoreに保存
+  if (fbDb && fbAuth?.currentUser) {
+    const trainerName = s.name || document.getElementById('trainer-name').value.trim() || '';
+    const gymName     = s.gym  || document.getElementById('trainer-gym').value.trim()  || '';
+    try {
+      await fbDb.collection('trainers').doc(fbAuth.currentUser.uid).set({
+        name: trainerName, gym: gymName, specialty, area, contact,
+        listed,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      toast(listed ? '✅ ディレクトリに掲載しました！' : '✅ 掲載を取り消しました');
+    } catch(e) {
+      console.error('saveDirectoryListing:', e);
+      toast('⚠️ 保存に失敗しました');
+    }
+  } else {
+    toast(listed ? '✅ 設定を保存しました（ログイン後に反映）' : '✅ 掲載を取り消しました');
+  }
 }
 
 /* ─────────────────────────────────────────
@@ -3598,62 +3683,104 @@ ${c.notes ? `<h2>メモ</h2><p style="font-size:13px;color:#555;line-height:1.7;
 }
 
 /* ─────────────────────────────────────────
-   SHARE PROGRESS (タスク4)
+   SHARE PROGRESS — 公開URLを生成してシェア
 ───────────────────────────────────────── */
-function shareProgress(clientId) {
-  const c        = load(K.clients).find(c => c.id === clientId);
+async function shareProgress(clientId) {
+  const c = load(K.clients).find(c => c.id === clientId);
   if (!c) return;
-  const sessions = load(K.sessions).filter(s => s.clientId === clientId);
+  const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
   const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
   const settings = loadObj(K.settings);
   const trainerName = settings.name || 'パーソナルトレーナー';
+  const gymName     = settings.gym  || '';
 
   // 開始からの日数
-  const startDate = c.startDate ? new Date(c.startDate + 'T12:00:00') : null;
+  const startDate   = c.startDate ? new Date(c.startDate + 'T12:00:00') : null;
   const elapsedDays = startDate ? Math.floor((Date.now() - startDate.getTime()) / 86400000) : null;
 
-  // 体重変化
+  // 体重・体脂肪変化
   const firstBody  = bodies[0];
   const latestBody = bodies[bodies.length - 1];
-  let weightLine = '';
-  if (firstBody && latestBody && firstBody !== latestBody) {
-    const diff = (latestBody.weight - firstBody.weight).toFixed(1);
-    const sign = diff > 0 ? '+' : '';
-    weightLine = `体重: ${firstBody.weight}kg → ${latestBody.weight}kg（${sign}${diff}kg）`;
-  } else if (latestBody) {
-    weightLine = `体重: ${latestBody.weight}kg`;
-  }
+  const weightStart  = firstBody  ? firstBody.weight  : null;
+  const weightLatest = latestBody ? latestBody.weight  : null;
+  const weightChange = (weightStart && weightLatest && firstBody !== latestBody)
+    ? parseFloat((weightLatest - weightStart).toFixed(1)) : null;
+  const fatChange = (firstBody?.fatPct != null && latestBody?.fatPct != null && firstBody !== latestBody)
+    ? parseFloat((latestBody.fatPct - firstBody.fatPct).toFixed(1)) : null;
 
   // 今月セッション数
-  const thisMonth = today().slice(0, 7);
+  const thisMonth    = today().slice(0, 7);
   const monthSessions = sessions.filter(s => s.date.startsWith(thisMonth)).length;
 
-  const textForShare = `【${c.name}さんの進捗報告 💪】
-${elapsedDays !== null ? `開始から${elapsedDays}日経過` : ''}
-${weightLine}
-今月セッション数: ${monthSessions}回
-担当: ${trainerName}`;
+  // PRs TOP5
+  const prMap = {};
+  sessions.forEach(s => (s.exercises||[]).forEach(ex => {
+    const maxW = Math.max(...(ex.sets||[]).filter(st => st.weight > 0).map(st => st.weight), 0);
+    if (!maxW) return;
+    if (!prMap[ex.name] || maxW > prMap[ex.name]) prMap[ex.name] = maxW;
+  }));
+  const topPRs = Object.entries(prMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([name,weight]) => ({name,weight}));
 
-  const textForCopy = textForShare + `\n#FitCoachPro #パーソナルトレーニング`;
-
-  if (navigator.share) {
-    navigator.share({ text: textForShare.trim() })
-      .then(() => toast('📤 シェアしました！'))
-      .catch(() => {});
-  } else {
-    navigator.clipboard.writeText(textForCopy.trim())
-      .then(() => toast('📋 クリップボードにコピーしました！'))
-      .catch(() => {
-        // フォールバック: テキストエリアでコピー
-        const ta = document.createElement('textarea');
-        ta.value = textForCopy.trim();
-        ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select(); document.execCommand('copy');
-        document.body.removeChild(ta);
-        toast('📋 クリップボードにコピーしました！');
+  // Firestoreが使える場合は公開URLを生成
+  if (fbDb) {
+    toast('🔗 リンクを生成中...');
+    try {
+      const shareId = uid();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30日後
+      await fbDb.collection('publicShares').doc(shareId).set({
+        trainerUid:    fbAuth?.currentUser?.uid || '',
+        trainerName,
+        gymName,
+        clientName:    c.name,
+        clientGoal:    c.goal || '',
+        elapsedDays,
+        weightStart,
+        weightLatest,
+        weightChange,
+        fatChange,
+        totalSessions: sessions.length,
+        monthSessions,
+        topPRs,
+        createdAt:  firebase.firestore.FieldValue.serverTimestamp(),
+        expiresAt:  firebase.firestore.Timestamp.fromDate(expiresAt)
       });
+      const shareUrl = `https://fitcoach-pro.pages.dev/share.html?id=${shareId}`;
+      copyToClipboard(shareUrl);
+      toast('🔗 共有リンクをコピーしました！LINEやSNSで送れます');
+      return;
+    } catch(e) {
+      console.error('shareProgress:', e);
+      // fallthrough to text share
+    }
   }
+
+  // Fistore未使用時のフォールバック（テキストシェア）
+  const sign = v => v > 0 ? '+'+v : v;
+  const lines = [`【${c.name}さんの進捗報告 💪】`];
+  if (elapsedDays !== null) lines.push(`開始から${elapsedDays}日経過`);
+  if (weightChange !== null) lines.push(`体重: ${weightStart}kg → ${weightLatest}kg（${sign(weightChange)}kg）`);
+  lines.push(`今月セッション数: ${monthSessions}回`);
+  lines.push(`担当: ${trainerName}`);
+  lines.push(`#FitCoachPro #パーソナルトレーニング`);
+  copyToClipboard(lines.join('\n'));
+  toast('📋 クリップボードにコピーしました！');
+}
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => _fallbackCopy(text));
+  } else {
+    _fallbackCopy(text);
+  }
+}
+function _fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
 }
 
 /* ─────────────────────────────────────────
