@@ -1554,6 +1554,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
         <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> ボリュームグラフ</div>
         <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> テンプレート無制限</div>
         <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> 進捗レポート生成</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> 進捗共有URL</div>
+        <div class="locked-feat" onclick="showUpgrade()"><span class="lf-lock">🔒</span> クライアント用ビュー</div>
       </div>
     </div>
     <div id="pro-feature-list" style="display:none;margin-bottom:14px;">
@@ -1773,16 +1775,39 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
         <span style="text-align:center;color:var(--sub);">❌</span>
         <span style="text-align:center;color:var(--amber);">✅</span>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;">
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);">
         <span style="color:var(--text);font-weight:700;">進捗レポート生成</span>
+        <span style="text-align:center;color:var(--sub);">❌</span>
+        <span style="text-align:center;color:var(--amber);">✅</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text);font-weight:700;">進捗共有URL</span>
+        <span style="text-align:center;color:var(--sub);">❌</span>
+        <span style="text-align:center;color:var(--amber);">✅</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 60px 60px;font-size:13px;padding:10px 14px;">
+        <span style="color:var(--text);font-weight:700;">クライアント用ビュー</span>
         <span style="text-align:center;color:var(--sub);">❌</span>
         <span style="text-align:center;color:var(--amber);">✅</span>
       </div>
     </div>
 
     <div id="upgrade-login-note" style="display:none;font-size:12px;color:var(--amber);margin-bottom:12px;text-align:center;">💡 決済にはGoogleログインが必要です</div>
-    <button class="btn btn-amber" onclick="startUpgrade()" style="font-size:16px;padding:18px;">¥4,980 / 月で始める</button>
-    <div style="font-size:11px;color:var(--sub);text-align:center;margin-top:10px;line-height:1.8;">
+
+    <!-- 料金選択 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <button onclick="startUpgrade('monthly')" style="background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:14px 10px;color:var(--text);font-size:13px;font-weight:800;cursor:pointer;text-align:center;line-height:1.5;">
+        <div style="font-size:18px;font-weight:900;color:var(--amber);">¥4,980</div>
+        <div style="font-size:11px;color:var(--sub);">/ 月払い</div>
+      </button>
+      <button onclick="startUpgrade('annual')" style="background:linear-gradient(135deg,rgba(255,149,0,.15),rgba(255,85,0,.1));border:1px solid rgba(255,149,0,.4);border-radius:14px;padding:14px 10px;color:var(--text);font-size:13px;font-weight:800;cursor:pointer;text-align:center;line-height:1.5;position:relative;">
+        <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:var(--amber);color:#000;font-size:9px;font-weight:900;padding:2px 8px;border-radius:10px;white-space:nowrap;">2ヶ月分お得</div>
+        <div style="font-size:18px;font-weight:900;color:var(--amber);">¥39,800</div>
+        <div style="font-size:11px;color:var(--sub);">/ 年払い</div>
+      </button>
+    </div>
+
+    <div style="font-size:11px;color:var(--sub);text-align:center;margin-top:6px;line-height:1.8;">
       いつでもキャンセル可能 · 決済後すぐに有効化<br>
       <span style="color:var(--accent);cursor:pointer;font-weight:700;" onclick="refreshProStatus()">✓ すでに支払い済みの方はこちら</span>
     </div>
@@ -1806,7 +1831,8 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.4) sepia
 //   https://us-central1-pt-manager-57190.cloudfunctions.net/stripeWebhook
 //   受信イベント: checkout.session.completed / customer.subscription.deleted
 // ────────────────────────────────────────────────────────
-const PRO_PAYMENT_URL = 'https://buy.stripe.com/aFa5kE8U5e3N2x479waMU00';
+const PRO_PAYMENT_URL        = 'https://buy.stripe.com/aFa5kE8U5e3N2x479waMU00';
+const PRO_ANNUAL_PAYMENT_URL = 'ANNUAL_PLAN_URL_PLACEHOLDER'; // Stripeで年払いリンクを作成後に差し替え
 let isPro = false;
 
 const FREE_LIMIT = 3;
@@ -2488,7 +2514,12 @@ function renderClientDetail(clientId) {
     </div>`}
 
     <div style="margin-bottom:8px;">
-      <button class="report-btn" style="background:linear-gradient(135deg,rgba(52,199,89,.15),rgba(0,200,128,.1));border-color:rgba(52,199,89,.3);color:var(--green);" onclick="shareProgress('${c.id}')">📤 進捗をシェア</button>
+      <button class="report-btn" style="background:linear-gradient(135deg,rgba(52,199,89,.15),rgba(0,200,128,.1));border-color:rgba(52,199,89,.3);color:var(--green);" onclick="${isPro ? `shareProgress('${c.id}')` : 'showUpgrade()'}">
+        ${isPro ? '📤 進捗をシェア' : '🔒 進捗をシェア (Pro)'}
+      </button>
+      <button class="report-btn" style="background:linear-gradient(135deg,rgba(0,122,255,.12),rgba(0,200,255,.08));border-color:rgba(0,122,255,.25);color:var(--blue);margin-top:8px;" onclick="${isPro ? `generateClientView('${c.id}')` : 'showUpgrade()'}">
+        ${isPro ? '🔗 クライアント用ビューを発行' : '🔒 クライアント用ビュー (Pro)'}
+      </button>
     </div>
 
     ${latestBody ? `
@@ -2814,6 +2845,7 @@ function saveSession() {
   }
   save(K.sessions, arr);
   editingSessionId = null;
+  syncClientViewIfExists(clientId);
 
   if (selectedClientId === clientId) {
     navBack();
@@ -2979,6 +3011,7 @@ function saveBodyRecord() {
   }
   save(K.body, arr);
   editingBodyId = null;
+  syncClientViewIfExists(clientId);
 
   if (selectedClientId === clientId) {
     navBack();
@@ -3442,17 +3475,23 @@ function closeUpgradeModal(e) {
   document.getElementById('upgrade-modal').classList.remove('open');
 }
 
-function startUpgrade() {
+function startUpgrade(plan = 'monthly') {
   if (!fbAuth || !fbAuth.currentUser) {
     toast('💡 まずGoogleでログインしてください');
     closeUpgradeModal();
     signInWithGoogle();
     return;
   }
-  // GA4: begin_checkout イベント
-  gtag('event', 'begin_checkout', { value: 4980, currency: 'JPY', items: [{ item_name: 'FitCoach Pro', price: 4980 }] });
+  const isAnnual = plan === 'annual';
+  const baseUrl  = isAnnual ? PRO_ANNUAL_PAYMENT_URL : PRO_PAYMENT_URL;
+  if (isAnnual && baseUrl === 'ANNUAL_PLAN_URL_PLACEHOLDER') {
+    toast('⚠️ 年払いプランは近日公開予定です');
+    return;
+  }
+  const price = isAnnual ? 39800 : 4980;
+  gtag('event', 'begin_checkout', { value: price, currency: 'JPY', items: [{ item_name: `FitCoach Pro (${isAnnual ? '年払い' : '月払い'})`, price }] });
   const uid = fbAuth.currentUser.uid;
-  const url = PRO_PAYMENT_URL + '?client_reference_id=' + uid;
+  const url = baseUrl + '?client_reference_id=' + uid;
   window.open(url, '_blank');
   closeUpgradeModal();
   toast('💳 Stripeの決済ページを開きました');
@@ -3686,6 +3725,7 @@ ${c.notes ? `<h2>メモ</h2><p style="font-size:13px;color:#555;line-height:1.7;
    SHARE PROGRESS — 公開URLを生成してシェア
 ───────────────────────────────────────── */
 async function shareProgress(clientId) {
+  if (!isPro) { showUpgrade(); return; }
   const c = load(K.clients).find(c => c.id === clientId);
   if (!c) return;
   const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
@@ -3764,6 +3804,114 @@ async function shareProgress(clientId) {
   lines.push(`#FitCoachPro #パーソナルトレーニング`);
   copyToClipboard(lines.join('\n'));
   toast('📋 クリップボードにコピーしました！');
+}
+
+/* ─────────────────────────────────────────
+   CLIENT VIEW — クライアント向けリアルタイムビュー
+───────────────────────────────────────── */
+const K_CLIENT_VIEWS = 'pt_client_views'; // {clientId: viewId} のマップ
+
+function getClientViewMap() {
+  try { return JSON.parse(localStorage.getItem(K_CLIENT_VIEWS)) || {}; } catch { return {}; }
+}
+
+async function generateClientView(clientId) {
+  if (!isPro) { showUpgrade(); return; }
+  if (!fbDb || !fbAuth?.currentUser) { toast('❌ ログインが必要です'); return; }
+
+  const viewMap = getClientViewMap();
+  let viewId = viewMap[clientId];
+
+  // 既存のビューがあれば再利用
+  if (viewId) {
+    const viewUrl = `https://fitcoach-pro.pages.dev/client-view.html?id=${viewId}`;
+    copyToClipboard(viewUrl);
+    toast('🔗 クライアント用リンクをコピーしました！');
+    return;
+  }
+
+  toast('🔗 クライアント用ビューを作成中...');
+  try {
+    viewId = uid();
+    await syncClientViewData(clientId, viewId);
+    // マップに保存
+    viewMap[clientId] = viewId;
+    localStorage.setItem(K_CLIENT_VIEWS, JSON.stringify(viewMap));
+    const viewUrl = `https://fitcoach-pro.pages.dev/client-view.html?id=${viewId}`;
+    copyToClipboard(viewUrl);
+    toast('🔗 クライアント用リンクをコピーしました！LINEで送れます');
+  } catch(e) {
+    console.error('generateClientView:', e);
+    toast('❌ 作成に失敗しました');
+  }
+}
+
+async function syncClientViewData(clientId, viewId) {
+  if (!fbDb || !fbAuth?.currentUser) return;
+  const c        = load(K.clients).find(c => c.id === clientId);
+  if (!c) return;
+  const sessions = load(K.sessions).filter(s => s.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
+  const bodies   = load(K.body).filter(b => b.clientId === clientId).sort((a,b) => a.date.localeCompare(b.date));
+  const settings = loadObj(K.settings);
+
+  const firstBody  = bodies[0];
+  const latestBody = bodies[bodies.length - 1];
+  const thisMonth  = today().slice(0, 7);
+
+  const prMap = {};
+  sessions.forEach(s => (s.exercises||[]).forEach(ex => {
+    const maxW = Math.max(...(ex.sets||[]).filter(st => st.weight > 0).map(st => st.weight), 0);
+    if (!maxW) return;
+    if (!prMap[ex.name] || maxW > prMap[ex.name]) prMap[ex.name] = maxW;
+  }));
+  const topPRs = Object.entries(prMap).sort((a,b) => b[1]-a[1]).slice(0,5).map(([name,weight]) => ({name,weight}));
+
+  const startDate = c.startDate ? new Date(c.startDate + 'T12:00:00') : null;
+  const elapsedDays = startDate ? Math.floor((Date.now() - startDate.getTime()) / 86400000) : null;
+
+  await fbDb.collection('clientViews').doc(viewId).set({
+    trainerUid:    fbAuth.currentUser.uid,
+    clientId,
+    clientName:    c.name,
+    clientGoal:    c.goal || '',
+    startDate:     c.startDate || null,
+    elapsedDays,
+    trainerName:   settings.name || 'パーソナルトレーナー',
+    gymName:       settings.gym  || '',
+    totalSessions: sessions.length,
+    monthSessions: sessions.filter(s => s.date.startsWith(thisMonth)).length,
+    weightStart:   firstBody?.weight  ?? null,
+    weightLatest:  latestBody?.weight ?? null,
+    weightChange:  (firstBody && latestBody && firstBody !== latestBody)
+      ? parseFloat((latestBody.weight - firstBody.weight).toFixed(1)) : null,
+    fatChange:     (firstBody?.fatPct != null && latestBody?.fatPct != null && firstBody !== latestBody)
+      ? parseFloat((latestBody.fatPct - firstBody.fatPct).toFixed(1)) : null,
+    topPRs,
+    recentSessions: [...sessions].reverse().slice(0, 10).map(s => ({
+      date:      s.date,
+      duration:  s.duration || null,
+      exercises: (s.exercises||[]).map(ex => ({
+        name: ex.name,
+        sets: (ex.sets||[]).length,
+        maxWeight: Math.max(...(ex.sets||[]).map(st => st.weight||0), 0) || null
+      }))
+    })),
+    bodies: bodies.slice(-20).map(b => ({
+      date: b.date, weight: b.weight, fatPct: b.fatPct ?? null,
+      chest: b.chest ?? null, waist: b.waist ?? null, hip: b.hip ?? null,
+      arm: b.arm ?? null, thigh: b.thigh ?? null
+    })),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge: false });
+}
+
+// セッション/体測定保存後に自動同期
+async function syncClientViewIfExists(clientId) {
+  if (!isPro || !fbDb || !fbAuth?.currentUser) return;
+  const viewMap = getClientViewMap();
+  const viewId  = viewMap[clientId];
+  if (!viewId) return;
+  try { await syncClientViewData(clientId, viewId); } catch(e) { console.error('syncClientView:', e); }
 }
 
 function copyToClipboard(text) {

@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>マイ進捗ダッシュボード | FitCoach Pro</title>
+<meta name="description" content="あなたのトレーニング進捗をリアルタイムで確認できます。">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue: #007AFF;
+    --green: #34C759;
+    --red: #FF3B30;
+    --amber: #FF9500;
+    --bg: #0a0a0a;
+    --card: #1c1c1e;
+    --card2: #2c2c2e;
+    --border: rgba(255,255,255,.08);
+    --text: #ffffff;
+    --sub: rgba(255,255,255,.45);
+  }
+
+  body {
+    font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+
+  .header {
+    background: linear-gradient(135deg, #007AFF 0%, #5856D6 100%);
+    padding: 52px 20px 36px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 70%, rgba(255,255,255,.12) 0%, transparent 60%);
+  }
+  .header-logo { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-bottom: 10px; position: relative; }
+  .header-name { font-size: 30px; font-weight: 900; position: relative; margin-bottom: 6px; }
+  .header-goal { font-size: 13px; color: rgba(255,255,255,.75); position: relative; }
+  .header-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    margin-top: 12px; padding: 6px 14px;
+    background: rgba(255,255,255,.18); border-radius: 20px;
+    font-size: 12px; font-weight: 700; position: relative;
+  }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #34C759;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  .container { padding: 20px 16px; max-width: 500px; margin: 0 auto; }
+
+  .section-title {
+    font-size: 11px; font-weight: 800; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--sub); margin: 24px 0 10px;
+  }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px; text-align: center;
+  }
+  .stat-card.wide { grid-column: 1 / -1; }
+  .stat-val { font-size: 34px; font-weight: 900; color: var(--blue); line-height: 1.1; }
+  .stat-val.green { color: var(--green); }
+  .stat-val.red   { color: var(--red); }
+  .stat-val.amber { color: var(--amber); }
+  .stat-lbl { font-size: 11px; font-weight: 700; color: var(--sub); margin-top: 5px; text-transform: uppercase; letter-spacing: .05em; }
+
+  .weight-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 18px; display: flex; align-items: center; gap: 12px;
+  }
+  .weight-side { text-align: center; flex: 1; }
+  .weight-val  { font-size: 28px; font-weight: 900; }
+  .weight-lbl  { font-size: 10px; color: var(--sub); font-weight: 700; text-transform: uppercase; margin-top: 3px; }
+  .weight-arrow { font-size: 20px; color: var(--sub); flex-shrink: 0; }
+  .weight-diff  { flex-shrink: 0; text-align: center; padding: 10px 12px; background: rgba(255,255,255,.05); border-radius: 12px; }
+  .weight-diff-val { font-size: 20px; font-weight: 900; }
+  .weight-diff-lbl { font-size: 10px; color: var(--sub); font-weight: 700; margin-top: 2px; }
+
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+  }
+  .chart-title { font-size: 12px; font-weight: 800; color: var(--sub); margin-bottom: 12px; text-transform: uppercase; letter-spacing: .06em; }
+
+  .pr-list { display: flex; flex-direction: column; gap: 8px; }
+  .pr-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .pr-name   { font-size: 14px; font-weight: 700; }
+  .pr-weight { font-size: 14px; font-weight: 900; color: var(--amber); }
+
+  .session-list { display: flex; flex-direction: column; gap: 8px; }
+  .session-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px;
+  }
+  .session-date { font-size: 12px; color: var(--sub); font-weight: 700; margin-bottom: 6px; }
+  .session-exs  { font-size: 13px; font-weight: 700; line-height: 1.6; }
+  .session-sub  { font-size: 11px; color: var(--sub); margin-top: 3px; }
+
+  .trainer-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+    padding: 18px; display: flex; align-items: center; gap: 14px;
+  }
+  .trainer-icon {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, #007AFF, #5856D6);
+    display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;
+  }
+  .trainer-name { font-size: 15px; font-weight: 800; }
+  .trainer-gym  { font-size: 12px; color: var(--sub); margin-top: 2px; }
+
+  .loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 80vh; gap: 14px; color: var(--sub); font-size: 14px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid rgba(255,255,255,.1); border-top-color: var(--blue);
+    border-radius: 50%; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .updated-at { font-size: 11px; color: var(--sub); text-align: center; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div class="spinner"></div>
+  <div>進捗を読み込み中...</div>
+</div>
+
+<div id="app" style="display:none;"></div>
+
+<script>
+  const FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyDCWtx1V9XdPIjfNH24ChEz-B0VaD0iBn4",
+    authDomain:        "pt-manager-57190.firebaseapp.com",
+    projectId:         "pt-manager-57190",
+    storageBucket:     "pt-manager-57190.firebasestorage.app",
+    messagingSenderId: "504138724513",
+    appId:             "1:504138724513:web:f222f564cca5a67bd6ace0"
+  };
+
+  firebase.initializeApp(FIREBASE_CONFIG);
+  const db = firebase.firestore();
+
+  let weightChart = null;
+
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function signNum(n) { return n > 0 ? '+' + n : String(n); }
+
+  function fmtDate(s) {
+    if (!s) return '';
+    const d = new Date(s + 'T12:00:00');
+    return `${d.getMonth()+1}/${d.getDate()}`;
+  }
+  function fmtDateFull(s) {
+    if (!s) return '';
+    const d = new Date(s + 'T12:00:00');
+    return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+  }
+
+  function main() {
+    const viewId = new URLSearchParams(location.search).get('id');
+    if (!viewId) { showError('URLが正しくありません'); return; }
+
+    // リアルタイムリスナーで購読
+    db.collection('clientViews').doc(viewId).onSnapshot(doc => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      if (!doc.exists) { showError('このリンクは無効です。トレーナーに確認してください。'); return; }
+      render(doc.data());
+    }, err => {
+      console.error(err);
+      showError('データの読み込みに失敗しました');
+    });
+  }
+
+  function showError(msg) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('app').innerHTML = `
+      <div style="text-align:center;padding:80px 20px;color:var(--sub);">
+        <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+        <div style="font-size:18px;font-weight:800;color:var(--text);margin-bottom:8px;">表示できません</div>
+        <div style="font-size:13px;line-height:1.6;">${esc(msg)}</div>
+      </div>`;
+  }
+
+  function render(d) {
+    document.title = `${d.clientName || 'マイ進捗'} | FitCoach Pro`;
+
+    // 更新日時
+    let updatedStr = '';
+    if (d.updatedAt) {
+      const dt = d.updatedAt.toDate();
+      updatedStr = `最終更新: ${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`;
+    }
+
+    // 体重変化
+    let weightSection = '';
+    if (d.weightLatest != null) {
+      if (d.weightStart != null && d.weightChange != null) {
+        const isBulk = d.clientGoal === '増量';
+        const diff = d.weightChange;
+        const isGood = isBulk ? diff >= 0 : diff <= 0;
+        const colorClass = diff === 0 ? '' : (isGood ? 'green' : 'red');
+        weightSection = `
+          <div class="section-title">体重の変化</div>
+          <div class="weight-card">
+            <div class="weight-side">
+              <div class="weight-val">${d.weightStart}<small style="font-size:14px;">kg</small></div>
+              <div class="weight-lbl">スタート</div>
+            </div>
+            <div class="weight-arrow">→</div>
+            <div class="weight-side">
+              <div class="weight-val">${d.weightLatest}<small style="font-size:14px;">kg</small></div>
+              <div class="weight-lbl">現在</div>
+            </div>
+            <div class="weight-diff">
+              <div class="weight-diff-val ${colorClass}">${signNum(diff)}<small style="font-size:12px;">kg</small></div>
+              <div class="weight-diff-lbl">変化量</div>
+            </div>
+          </div>`;
+      } else {
+        weightSection = `
+          <div class="section-title">現在の体重</div>
+          <div class="stat-card">
+            <div class="stat-val">${d.weightLatest}<small style="font-size:16px;">kg</small></div>
+            <div class="stat-lbl">体重</div>
+          </div>`;
+      }
+    }
+
+    // 体重グラフ
+    let chartSection = '';
+    if (d.bodies && d.bodies.length >= 2) {
+      chartSection = `
+        <div class="section-title">体重グラフ</div>
+        <div class="chart-card">
+          <canvas id="weight-chart" height="160"></canvas>
+        </div>`;
+    }
+
+    // PRs
+    let prSection = '';
+    if (d.topPRs && d.topPRs.length > 0) {
+      const items = d.topPRs.map(p => `
+        <div class="pr-item">
+          <div class="pr-name">🏆 ${esc(p.name)}</div>
+          <div class="pr-weight">${p.weight} kg</div>
+        </div>`).join('');
+      prSection = `<div class="section-title">パーソナルレコード</div><div class="pr-list">${items}</div>`;
+    }
+
+    // 直近セッション
+    let sessionSection = '';
+    if (d.recentSessions && d.recentSessions.length > 0) {
+      const items = d.recentSessions.slice(0, 5).map(s => {
+        const exStr = (s.exercises||[]).map(ex => {
+          const parts = [ex.name];
+          if (ex.sets) parts.push(`${ex.sets}set`);
+          if (ex.maxWeight) parts.push(`max ${ex.maxWeight}kg`);
+          return parts.join(' ');
+        }).join(' / ');
+        return `
+          <div class="session-item">
+            <div class="session-date">${fmtDateFull(s.date)}${s.duration ? ` · ${s.duration}分` : ''}</div>
+            <div class="session-exs">${esc(exStr) || '記録なし'}</div>
+          </div>`;
+      }).join('');
+      sessionSection = `<div class="section-title">直近のセッション</div><div class="session-list">${items}</div>`;
+    }
+
+    // 体脂肪変化
+    let fatSection = '';
+    if (d.fatChange != null) {
+      const fatColor = d.fatChange < 0 ? 'green' : 'red';
+      fatSection = `
+        <div style="margin-top:10px;">
+          <div class="stat-card">
+            <div class="stat-val ${fatColor}">${signNum(d.fatChange)}<small style="font-size:16px;">%</small></div>
+            <div class="stat-lbl">体脂肪変化</div>
+          </div>
+        </div>`;
+    }
+
+    const html = `
+      <div class="header">
+        <div class="header-logo">My Progress · FitCoach Pro</div>
+        <div class="header-name">${esc(d.clientName || 'マイ進捗')}</div>
+        ${d.clientGoal ? `<div class="header-goal">目標: ${esc(d.clientGoal)}</div>` : ''}
+        <div class="header-badge"><div class="live-dot"></div>リアルタイム更新中</div>
+      </div>
+      <div class="container">
+        <div class="section-title">セッション実績</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-val">${d.totalSessions || 0}</div>
+            <div class="stat-lbl">総セッション数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val amber">${d.monthSessions || 0}</div>
+            <div class="stat-lbl">今月</div>
+          </div>
+          ${d.elapsedDays != null ? `
+          <div class="stat-card wide">
+            <div class="stat-val green">${d.elapsedDays}</div>
+            <div class="stat-lbl">開始からの日数</div>
+          </div>` : ''}
+        </div>
+
+        ${weightSection}
+        ${fatSection}
+        ${chartSection}
+        ${prSection}
+        ${sessionSection}
+
+        <div class="section-title" style="margin-top:28px;">担当トレーナー</div>
+        <div class="trainer-card">
+          <div class="trainer-icon">💪</div>
+          <div>
+            <div class="trainer-name">${esc(d.trainerName || 'パーソナルトレーナー')}</div>
+            ${d.gymName ? `<div class="trainer-gym">${esc(d.gymName)}</div>` : ''}
+          </div>
+        </div>
+
+        ${updatedStr ? `<div class="updated-at">${updatedStr}</div>` : ''}
+      </div>`;
+
+    document.getElementById('app').innerHTML = html;
+
+    // 体重グラフ描画
+    if (d.bodies && d.bodies.length >= 2) {
+      const ctx = document.getElementById('weight-chart');
+      if (ctx) {
+        if (weightChart) weightChart.destroy();
+        const labels  = d.bodies.map(b => fmtDate(b.date));
+        const weights = d.bodies.map(b => b.weight);
+        weightChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: '体重 (kg)',
+              data: weights,
+              borderColor: '#007AFF',
+              backgroundColor: 'rgba(0,122,255,.08)',
+              borderWidth: 2,
+              pointRadius: 4,
+              pointBackgroundColor: '#007AFF',
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: 'rgba(255,255,255,.4)', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } },
+              y: { ticks: { color: 'rgba(255,255,255,.4)', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,.05)' } }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  main();
+</script>
+</body>
+</html>
